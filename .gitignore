@@ -63,3 +63,6 @@ src-tauri/icons/*
 !src-tauri/icons/128x128@2x.png
 !src-tauri/icons/icon.icns
 !src-tauri/icons/icon.ico
+
+# Vite 自动导入缓存
+auto-imports.d.ts

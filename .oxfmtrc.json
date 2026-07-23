@@ -1,0 +1,10 @@
+{
+  "semi": false,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "useTabs": false,
+  "trailingComma": "all",
+  "printWidth": 100,
+  "endOfLine": "lf",
+  "ignorePatterns": ["dist/**", "coverage/**", "src-tauri/target/**"]
+}

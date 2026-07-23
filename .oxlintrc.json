@@ -1,0 +1,6 @@
+{
+  "ignorePatterns": ["dist/**", "coverage/**", "src-tauri/target/**"],
+  "rules": {
+    "no-console": "error"
+  }
+}

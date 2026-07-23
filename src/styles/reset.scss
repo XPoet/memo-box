@@ -1,0 +1,14 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-block-size: 100%;
+  margin: 0;
+}
+
+body {
+  min-inline-size: 320px;
+}

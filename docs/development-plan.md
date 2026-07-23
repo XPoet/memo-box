@@ -3,9 +3,9 @@
 > 计划版本：V1.0
 > 制定日期：2026-07-23
 > 当前分支：`develop`
-> 当前基线提交：`fc3c6f4`
+> 当前基线提交：`139577b`
 > 计划范围：从文档基线到 MemoBox V1.0 正式发布
-> 计划状态：总路线已制定，等待执行 T01
+> 计划状态：M0 已完成，下一任务为 T03
 > 计划事实来源：`docs/PRD-V1.0.md`、`docs/design/memo-box.pen`、`docs/TECHNICAL-DESIGN.md`
 
 ## 1. 计划定位与使用方式
@@ -279,7 +279,7 @@ git diff --check
 
 说明：
 
-- 当前尚无应用工程，所以这些命令在 T00 不能执行。
+- T01 已建立应用工程；上述质量门自 T01 起可重复执行。
 - `pnpm dev` 或 `pnpm tauri:dev` 只能证明进程启动，不能单独作为业务通过证据。
 - 每个任务还必须执行任务专属测试和原生应用验收。
 - Tauri 相关任务至少执行当前平台 debug build。
@@ -348,7 +348,7 @@ flowchart LR
 
 ### T01：可运行的桌面应用骨架与质量门
 
-- **状态**：待执行，下一任务。
+- **状态**：已完成。
 - **目标**：建立可在 macOS 原生启动的 Tauri 2＋Vue 3 空壳，落地 Pencil 主题变量、Hash 路由和全量质量命令。
 - **输入依据**：技术设计第 1～4、8～10 节；Pencil 01、02、12；项目规则。
 - **涉及文件**：`package.json`、`pnpm-lock.yaml`、`.npmrc`、`index.html`、Vite／TypeScript／Vitest／Oxfmt／Oxlint 配置、`src/main.ts`、`src/App.vue`、`src/router/index.ts`、`src/layouts/`、`src/styles/`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`、`src-tauri/capabilities/default.json`、`src-tauri/src/main.rs`、`src-tauri/src/lib.rs`。
@@ -383,11 +383,12 @@ flowchart LR
   - 路由、Pinia、Element Plus、SCSS 和测试链可运行。
   - Pencil 浅色变量和应用壳尺寸正确，Windows 适配暂不提前实现。
   - 未开放 Shell、HTTP 或任意文件系统能力。
+- **完成证据**：2026-07-23 已建立精确版本锁文件、Hash 路由、Pinia、Element Plus 构建期按需导入、SCSS 主题变量、离线字体回退、最小 Capability 和应用壳。`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build`、`cargo fmt --check --manifest-path src-tauri/Cargo.toml`、`cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`、`cargo test --manifest-path src-tauri/Cargo.toml` 已通过；`pnpm tauri:dev` 已启动原生窗口，`pnpm exec tauri build --debug` 已完成 macOS debug 应用与 DMG 构建。
 - **Git 提交说明**：`chore: 初始化 MemoBox 桌面应用骨架`。
 
 ### T02：本地数据目录、数据库迁移与启动闭环
 
-- **状态**：待执行。
+- **状态**：已完成。
 - **目标**：原生应用启动时安全创建固定数据目录、初始化 SQLite、执行 Migration，并向前端返回可诊断的启动快照。
 - **输入依据**：PRD 6、7.9、9.1、10.2～10.3；技术设计 5～7；Pencil 09、11。
 - **涉及文件**：`docs/DATABASE.md`、`docs/IPC.md`、`src-tauri/migrations/V001__initial_schema.sql`、`src-tauri/src/database/`、`src-tauri/src/domain/`、`src-tauri/src/repositories/`、`src-tauri/src/services/bootstrap.rs`、`src-tauri/src/commands/bootstrap.rs`、`src-tauri/src/dto/`、`src-tauri/src/lib.rs`、`src/services/bootstrap.ts`、`src/stores/app.ts`、启动错误组件及测试。
@@ -417,6 +418,7 @@ flowchart LR
   - 数据目录不可写、数据库占用和损坏均有稳定错误码，日志不含正文。
   - SQLite 只由 Rust 访问，所有 SQL 参数化，写入使用事务。
   - 数据结构版本可在设置任务中直接复用。
+- **完成证据**：2026-07-23 已先更新 `docs/DATABASE.md` 与 `docs/IPC.md`，再新增 V001 Migration 和 Command → Service → Repository 实现。启动在阻塞线程创建固定目录、配置 SQLite、执行事务化 Migration，并通过 `bootstrap_app` 返回安全快照；前端仅经 TypeScript Service 调用。Rust 幂等测试验证首次与重复启动、必需目录、V001 记录和 6 张核心表；前端 4 项测试覆盖快照、错误码屏蔽和诊断重试状态。完整质量门、原生启动和当前平台 debug 构建均已通过。
 - **Git 提交说明**：`feat: 建立本地数据初始化与迁移闭环`。
 
 ### T03：笔记工作台、纯文本编辑与自动保存闭环
@@ -877,16 +879,16 @@ flowchart LR
 
 | 状态 | 任务 |
 |---|---|
-| 已完成 | T00 基线审计与总开发路线 |
-| 进行中 | 无；下一步应从 T01 开始 |
-| 待执行 | T01～T14 |
+| 已完成 | T00 基线审计与总开发路线；T01 桌面应用骨架与质量门；T02 本地数据启动闭环 |
+| 进行中 | 无；下一步应从 T03 开始 |
+| 待执行 | T03～T14 |
 | 阻塞 | T15 正式发布 |
 
 | 任务 | 状态 | 前置 | 计划出口 |
 |---|---|---|---|
 | T00 | 已完成 | 无 | 总路线可执行 |
-| T01 | 待执行 | T00 | 原生空壳与质量门 |
-| T02 | 待执行 | T01 | 本地数据安全启动 |
+| T01 | 已完成 | T00 | 原生空壳与质量门 |
+| T02 | 已完成 | T01 | 本地数据安全启动 |
 | T03 | 待执行 | T02 | 笔记与自动保存 |
 | T04 | 待执行 | T03、D01 | 图片粘贴 |
 | T05 | 待执行 | T04 | 回收站 |
@@ -924,7 +926,7 @@ flowchart LR
 | R04 | 中文全文搜索、符号和相关度在 10,000 条数据下可能超时 | 高 | T08、T12 | FTS5 方案验证、查询计划、稳定分页和索引重建 |
 | R05 | 自动保存与切换／关闭存在竞态 | 高 | T03、T12 | 单笔记保存队列、版本号、防抖 flush、关闭拦截和恢复草稿 |
 | R06 | 导出多层路径、重名和部分失败组合复杂 | 中 | T09 | 纯函数路径测试、导出快照、稳定命名和逐项结果 |
-| R07 | 当前为绿色项目，稳定依赖之间可能存在工具链兼容问题 | 中 | T01 | 一次性选择兼容稳定版本并锁定；未经批准不升级 |
+| R07 | 当前为绿色项目，稳定依赖之间可能存在工具链兼容问题 | 已收敛 | T01 | 已选择并锁定兼容稳定版本，前端与 Rust 全量质量门和当前平台 debug 构建通过；后续未经批准不升级 |
 | R08 | Element Plus 与 Pencil 轻微皮肤差异诱发过度 CSS 覆盖 | 中 | T01、T11 | 官方组件能力优先；只为语义、可用性或不可忽略布局差异定制 |
 | R09 | macOS 当前环境无法证明 Windows 原生行为 | 高 | T14 | 必须在真实 Windows 环境构建和验收，不以静态前端代替 |
 | R10 | 正式签名、公证和发布依赖外部账号与证书 | 阻塞 | T15 | 候选包与正式发布分离，未经授权不触碰生产凭据 |
@@ -993,6 +995,8 @@ flowchart LR
 | 2026-07-23 | A005 | 搜索索引安排到 V002，而不修改 V001 | 保持 Migration 只增不改，并让搜索能力独立验收 | T02、T08 |
 | 2026-07-23 | A006 | macOS、Windows 和正式发布拆成三个任务 | 双平台验证环境和签名权限不同，必须分别形成可验收出口 | T13～T15 |
 | 2026-07-23 | A007 | 大图片阈值保留为 D01，不自行设置 | 阈值会改变用户可粘贴内容，属于产品行为歧义 | T04 |
+| 2026-07-23 | A008 | V001 在 T02 一次建立全部核心业务表，全文检索继续保留给 V002 | 提前固定外键、唯一约束和资源多对多关系可避免后续首个业务任务再修改初始结构，同时不提前交付搜索能力 | T02、T04～T10 |
+| 2026-07-23 | A009 | Element Plus 使用 Vite 构建期自动解析和按需样式导入 | 修复骨架阶段的整包引入，使最小应用壳保持可控体积且符合技术设计 | T01 |
 
 后续调整规则：
 
@@ -1012,4 +1016,4 @@ flowchart LR
 - [x] PRD P0、选定 P1、14 个 Pencil 画板和 15 个复用组件全部有任务落点。
 - [x] 当前完成、进行中、待执行、阻塞和风险状态已明确。
 - [x] 业务歧义、外部环境、签名和生产权限已隔离为决策门。
-- [x] 未引入第三方规划工具，未执行生产变更，未修改锁文件或依赖。
+- [x] 未引入第三方规划工具，未执行生产变更；T01 为首次工程初始化已生成并锁定依赖与锁文件。
