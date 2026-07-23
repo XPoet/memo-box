@@ -1,0 +1,157 @@
+use rusqlite::{Connection, OptionalExtension, params};
+
+use crate::domain::notes::{NoteDetail, NoteError, NoteSummary};
+
+pub struct NotesRepository;
+
+impl NotesRepository {
+    pub fn create(
+        connection: &mut Connection,
+        id: &str,
+        now: &str,
+    ) -> Result<NoteDetail, NoteError> {
+        let transaction = connection
+            .transaction()
+            .map_err(|_| NoteError::SaveFailed)?;
+        transaction
+            .execute(
+                "INSERT INTO notes (id, created_at, updated_at) VALUES (?1, ?2, ?2)",
+                params![id, now],
+            )
+            .map_err(|_| NoteError::SaveFailed)?;
+        transaction.commit().map_err(|_| NoteError::SaveFailed)?;
+        Self::find_detail(connection, id)
+    }
+
+    pub fn list(connection: &Connection) -> Result<Vec<NoteSummary>, NoteError> {
+        let mut statement = connection
+            .prepare(
+                "SELECT id, title, content, created_at, updated_at
+                 FROM notes
+                 WHERE is_deleted = 0
+                 ORDER BY is_pinned DESC, updated_at DESC, id DESC",
+            )
+            .map_err(|_| NoteError::ListFailed)?;
+        let rows = statement
+            .query_map([], |row| {
+                let content: String = row.get(2)?;
+                Ok(NoteSummary {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    content_preview: content_preview(&content),
+                    created_at: row.get(3)?,
+                    updated_at: row.get(4)?,
+                })
+            })
+            .map_err(|_| NoteError::ListFailed)?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|_| NoteError::ListFailed)
+    }
+
+    pub fn find_detail(connection: &Connection, id: &str) -> Result<NoteDetail, NoteError> {
+        connection
+            .query_row(
+                "SELECT id, title, content, created_at, updated_at
+                 FROM notes WHERE id = ?1 AND is_deleted = 0",
+                params![id],
+                |row| {
+                    Ok(NoteDetail {
+                        id: row.get(0)?,
+                        title: row.get(1)?,
+                        content: row.get(2)?,
+                        created_at: row.get(3)?,
+                        updated_at: row.get(4)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|_| NoteError::SaveFailed)?
+            .ok_or(NoteError::NotFound)
+    }
+
+    pub fn save(
+        connection: &mut Connection,
+        id: &str,
+        title: &str,
+        content: &str,
+        now: &str,
+    ) -> Result<NoteDetail, NoteError> {
+        let transaction = connection
+            .transaction()
+            .map_err(|_| NoteError::SaveFailed)?;
+        let changed = transaction
+            .execute(
+                "UPDATE notes SET title = ?2, content = ?3, updated_at = ?4
+                 WHERE id = ?1 AND is_deleted = 0",
+                params![id, title, content, now],
+            )
+            .map_err(|_| NoteError::SaveFailed)?;
+        if changed == 0 {
+            return Err(NoteError::NotFound);
+        }
+        transaction.commit().map_err(|_| NoteError::SaveFailed)?;
+        Self::find_detail(connection, id)
+    }
+
+    pub fn cleanup_empty(connection: &mut Connection, id: &str) -> Result<(), NoteError> {
+        let transaction = connection
+            .transaction()
+            .map_err(|_| NoteError::SaveFailed)?;
+        transaction
+            .execute(
+                "DELETE FROM notes
+                 WHERE id = ?1 AND is_deleted = 0
+                   AND trim(title) = '' AND trim(content) = ''
+                   AND NOT EXISTS (SELECT 1 FROM note_assets WHERE note_id = notes.id)",
+                params![id],
+            )
+            .map_err(|_| NoteError::SaveFailed)?;
+        transaction.commit().map_err(|_| NoteError::SaveFailed)
+    }
+
+    pub fn save_recovery_draft(
+        connection: &mut Connection,
+        id: &str,
+        title: &str,
+        content: &str,
+        failure_code: &str,
+        now: &str,
+    ) -> Result<(), NoteError> {
+        let transaction = connection
+            .transaction()
+            .map_err(|_| NoteError::RecoveryDraftSaveFailed)?;
+        transaction
+            .execute(
+                "INSERT INTO recovery_drafts
+                    (note_id, title, content, failure_code, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+                 ON CONFLICT(note_id) DO UPDATE SET
+                    title = excluded.title,
+                    content = excluded.content,
+                    failure_code = excluded.failure_code,
+                    updated_at = excluded.updated_at",
+                params![id, title, content, failure_code, now],
+            )
+            .map_err(|_| NoteError::RecoveryDraftSaveFailed)?;
+        transaction
+            .commit()
+            .map_err(|_| NoteError::RecoveryDraftSaveFailed)
+    }
+}
+
+fn content_preview(content: &str) -> String {
+    let mut preview = String::new();
+    let mut inside_tag = false;
+    for character in content.chars() {
+        match character {
+            '<' => inside_tag = true,
+            '>' => inside_tag = false,
+            _ if !inside_tag => preview.push(character),
+            _ => {}
+        }
+        if preview.chars().count() >= 160 {
+            break;
+        }
+    }
+    preview.split_whitespace().collect::<Vec<_>>().join(" ")
+}

@@ -6,12 +6,16 @@ defineProps<{
 
 <template>
   <main class="workspace-layout">
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="主导航">
       <p class="brand">MemoBox</p>
       <p class="brand-subtitle">本地 Markdown 笔记</p>
+      <slot name="navigation" />
     </aside>
-    <section class="workspace-content">
-      <slot />
+    <section class="note-list-panel" aria-label="笔记列表">
+      <slot name="list" />
+    </section>
+    <section class="editor-panel" aria-label="笔记编辑器">
+      <slot name="editor" />
       <p class="schema-version">本地数据结构 V{{ schemaVersion.toString().padStart(3, '0') }}</p>
     </section>
   </main>
@@ -20,7 +24,7 @@ defineProps<{
 <style scoped lang="scss">
 .workspace-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 240px 340px minmax(0, 1fr);
   min-block-size: 100vh;
   background: var(--color-canvas);
 }
@@ -50,16 +54,30 @@ defineProps<{
   font-size: var(--font-size-sm);
 }
 
-.workspace-content {
+.note-list-panel,
+.editor-panel {
   display: grid;
-  align-content: center;
-  gap: var(--space-24);
-  padding: var(--space-32);
+  min-inline-size: 0;
+}
+
+.note-list-panel {
+  border-inline-end: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.editor-panel {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.schema-version {
+  padding: var(--space-8) var(--space-16);
+  border-block-start: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 @media (max-width: 960px) {
   .workspace-layout {
-    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-columns: 72px minmax(280px, 320px) minmax(0, 1fr);
   }
 
   .sidebar {

@@ -1,8 +1,8 @@
 # MemoBox IPC 契约
 
-> 契约版本：V001
+> 契约版本：V002
 > 最后更新：2026-07-23
-> 生效任务：T02 本地数据目录、数据库迁移与启动闭环
+> 生效任务：T02 本地数据目录、数据库迁移与启动闭环；T03 笔记工作台、纯文本编辑与自动保存闭环；T04 图片粘贴与本地资源生命周期
 
 ## 1. 通用规则
 
@@ -41,3 +41,76 @@
 ## 3. 前端状态
 
 `app` Pinia Store 管理 `idle`、`loading`、`ready`、`failed` 四种启动状态。`ready` 才渲染工作台；`failed` 渲染诊断信息和重试按钮。当前接口不提供修改或迁移数据目录的能力。
+
+## 4. 笔记接口
+
+所有笔记接口只作用于未删除笔记。Command 在阻塞线程执行，前端不得传入数据库路径、分类路径或排序 SQL。
+
+### `create_note`
+
+无参数。创建一条空白笔记并返回完整详情；新建成功后前端立即聚焦标题输入框。
+
+### `list_notes`
+
+无参数。按 `is_pinned DESC, updated_at DESC, id DESC` 返回未删除笔记的 `NoteSummary[]`。
+
+| 字段             | 类型   | 说明                                   |
+| ---------------- | ------ | -------------------------------------- |
+| `id`             | string | 笔记 UUID                              |
+| `title`          | string | 原始标题；空标题由前端展示层回退       |
+| `contentPreview` | string | 正文归一化后的前 160 个字符，不含 HTML |
+| `createdAt`      | string | UTC RFC 3339                           |
+| `updatedAt`      | string | UTC RFC 3339                           |
+
+### `get_note`
+
+请求：`{ id: string }`。成功返回 `NoteDetail`：`id`、`title`、`content`、`createdAt`、`updatedAt`。不存在或已删除时返回 `NOTE_NOT_FOUND`。
+
+### `save_note`
+
+请求：`{ id: string, title: string, content: string }`。在一个数据库事务内更新标题、正文和 `updated_at`，成功返回更新后的 `NoteDetail`。标题与正文最大长度由 Rust 限制，前端不可绕过。
+
+### `cleanup_empty_note`
+
+请求：`{ id: string }`。仅当笔记标题和正文均为空白、没有关联资源且未删除时删除临时笔记；其他情况保持幂等且不修改数据。前端在切换笔记前调用。
+
+### `save_recovery_draft`
+
+请求：`{ id: string, title: string, content: string, failureCode: string }`。仅在正常保存失败后调用，以 UPSERT 方式写入 `recovery_drafts`；失败不会覆盖前端内存草稿。该接口不记录正文到日志。
+
+### 笔记错误码
+
+`NOTE_NOT_FOUND` ｜ `NOTE_VALIDATION_FAILED` ｜ `NOTE_LIST_FAILED` ｜ `NOTE_SAVE_FAILED` ｜ `RECOVERY_DRAFT_SAVE_FAILED`
+
+## 5. 图片资源接口
+
+### `save_pasted_image`
+
+请求：`{ noteId: string, bytes: number[] }`。前端只能在编辑器的用户粘贴事件中读取剪贴板文件或系统位图后调用，不传入文件路径、扩展名、MIME 或哈希。
+
+Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限内存和尺寸的完整解码校验可读性和尺寸；不信任前端类型。原始文件字节可用时直接保存；只有系统仅提供 RGBA 位图时，前端无损编码为 PNG 再请求本接口。服务端以 SHA-256 去重、临时文件加同步和原子移动写入 `assets/{asset-id}.{extension}`，再以事务创建或复用资源记录和笔记关联。任一步失败时不插入 Markdown，也不保留临时或孤立文件。
+
+成功响应：`SavedAsset`。
+
+| 字段           | 类型   | 说明                                                 |
+| -------------- | ------ | ---------------------------------------------------- |
+| `id`           | string | 稳定资源 UUID                                        |
+| `relativePath` | string | 固定为 `assets/{asset-id}.{extension}`，不含绝对路径 |
+| `mimeType`     | string | 由 Rust 检测出的真实类型                             |
+| `width`        | number | 图片宽度                                             |
+| `height`       | number | 图片高度                                             |
+| `size`         | number | 实际字节数                                           |
+
+前端使用返回值插入 `![图片](./assets/{asset-id}.{extension})`，随后触发自动保存。文件达到或超过 10 MiB 时，必须在调用前显示实际大小并允许用户继续或取消；取消时不得调用原生接口。
+
+### `get_note_asset_health`
+
+请求：`{ noteId: string }`。返回 `AssetHealth { missingAssetCount: number }`。仅返回缺失数量，不向前端公开文件系统路径；大于零时编辑区显示资源缺失提示，原 Markdown 引用保持不变。
+
+### 图片错误码
+
+`ASSET_NOTE_NOT_FOUND` ｜ `INVALID_IMAGE_DATA` ｜ `UNSUPPORTED_IMAGE_FORMAT` ｜ `IMAGE_DIMENSIONS_INVALID` ｜ `ASSET_STORAGE_UNAVAILABLE` ｜ `ASSET_WRITE_FAILED` ｜ `ASSET_SAVE_FAILED`
+
+## 6. 关闭与保存行为
+
+前端自动保存防抖为 1 秒；连续输入期间不得每键调用 `save_note`。切换笔记、立即保存快捷键和窗口关闭请求前必须执行当前笔记的串行 flush。保存失败时保留内存草稿，尝试写入 `recovery_drafts`，并阻止窗口关闭、展示重试入口；不得静默丢弃内容。

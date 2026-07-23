@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "MemoBox 主窗口最小权限集。",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "clipboard-manager:allow-read-image"]
 }
