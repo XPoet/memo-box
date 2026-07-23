@@ -1,0 +1,1015 @@
+# MemoBox V1.0 总开发路线
+
+> 计划版本：V1.0
+> 制定日期：2026-07-23
+> 当前分支：`develop`
+> 当前基线提交：`fc3c6f4`
+> 计划范围：从文档基线到 MemoBox V1.0 正式发布
+> 计划状态：总路线已制定，等待执行 T01
+> 计划事实来源：`docs/PRD-V1.0.md`、`docs/design/memo-box.pen`、`docs/TECHNICAL-DESIGN.md`
+
+## 1. 计划定位与使用方式
+
+本文档是 MemoBox V1.0 的总开发路线和状态单一事实来源。后续开发必须按任务顺序推进；每次只启动一个可独立验收的业务闭环，完成实现、自动化验证、原生应用验收、文档同步和 Git 差异审查后，才能更新状态并进入下一任务。
+
+状态定义：
+
+| 状态 | 含义 |
+|---|---|
+| `已完成` | 实现、验证、文档和差异审查均已完成，有可追溯证据 |
+| `进行中` | 当前唯一正在实现和验证的任务 |
+| `待执行` | 输入和依赖已明确，但尚未开始 |
+| `阻塞` | 缺少外部权限、环境、业务决策或安全前提，无法安全继续 |
+| `风险` | 可以继续推进，但必须在指定任务中验证和收敛 |
+
+执行原则：
+
+1. 先更新本计划及对应契约文档，再修改代码和 Migration。
+2. 涉及数据库结构时，先更新 `docs/DATABASE.md`，再新增 Migration；已经执行过的 Migration 不得修改。
+3. 涉及 Tauri Command、DTO 或前后端字段时，先更新 `docs/IPC.md`，再按 `数据库 → Rust Domain／DTO → Command → TypeScript Service → Store／Composable → Vue` 的顺序实现。
+4. 页面结构、信息层级、状态和交互以 Pencil 为准；产品行为和范围以 PRD 为准；技术分层和工具链以技术设计与项目规则为准。
+5. 不并行启动多个业务任务，不提前实现后续任务，不使用第三方规划工具。
+6. 不自动执行生产发布、签名、公证、远程上传、Git push 或不可逆操作。
+7. 每次任务结束后更新状态看板、风险表、计划调整记录和实际提交哈希。
+
+## 2. 已读取来源与交叉检查结论
+
+### 2.1 来源优先级
+
+| 优先级 | 来源 | 约束范围 |
+|---|---|---|
+| 1 | `docs/PRD-V1.0.md` | 产品目标、业务行为、V1.0 范围、异常边界、验收标准 |
+| 2 | `docs/TECHNICAL-DESIGN.md` | 技术栈、分层架构、目录、质量门、发布目标 |
+| 3 | `docs/design/memo-box.pen` | 页面结构、组件复用、视觉变量、布局、交互和状态 |
+| 4 | `docs/design/UI-Prompt.md` | 设计稿的补充背景和交付约束，不覆盖前三项 |
+| 5 | `AGENTS.md`、`CLAUDE.md` | 工程边界、代码规范、安全和完成标准 |
+
+### 2.2 Pencil 设计稿基线
+
+Pencil MCP 已连接并完整读取当前活动文件 `docs/design/memo-box.pen`。设计稿包含 14 个顶层画板、15 个复用组件、浅色／深色主题变量和两档桌面适配：
+
+| 画板 | 主要内容 | 计划任务 |
+|---|---|---|
+| 00 设计说明与信息架构 | 捕获、组织、找回、带走四段信息架构 | T00～T12 |
+| 01 设计系统与组件规范 | 颜色、排版、间距、按钮、输入、列表、状态 | T01、T11 |
+| 02 主工作台 浅色 macOS | 240／340／860 三栏工作台 | T03、T10、T11 |
+| 03 主工作台 深色 macOS | 深色主题工作台 | T10、T11 |
+| 04 分类管理页面 | 五级树、详情、路径、统计、危险操作 | T06 |
+| 05 标签管理页面 | 标签搜索、统计、列表和操作 | T07 |
+| 06 全局搜索结果页 | 搜索、筛选、结果列表、上下文保留 | T08 |
+| 07 导出设置与进度 | 范围、目录、进度、成功和失败 | T09 |
+| 08 回收站页面 | 恢复、永久删除、清空和风险提示 | T05 |
+| 09 设置页面 | 本地目录、导出、排序、主题、字体和版本 | T10 |
+| 10 空状态集合 | 首次进入、分类、标签、搜索、回收站空状态 | T03、T05～T08、T11 |
+| 11 异常与提示状态 | 保存、图片、磁盘、Toast 和确认弹窗 | T03～T05、T09、T11 |
+| 12 Windows 适配 1366×768 | 210／320／836 三栏布局 | T11、T14 |
+| 13 核心交互说明 | 编辑保存、分类拖拽、导出和溢出策略 | T03、T06、T09、T11 |
+
+复用组件映射：
+
+| Pencil 组件 | 实现落点 |
+|---|---|
+| 主按钮、次按钮、危险按钮 | 优先复用 Element Plus Button，由 `src/styles/_element-plus.scss` 统一主题 |
+| 搜索输入框 | `src/components/SearchInput.vue` |
+| 标签 Chip | `src/components/TagChip.vue` |
+| 保存状态 | `src/features/editor/SaveStatus.vue` |
+| 笔记列表项 | `src/features/notes/NoteListItem.vue` |
+| 导航项 | `src/layouts/AppSidebar.vue` |
+| 分类选择器 | `src/features/categories/CategorySelector.vue` |
+| 搜索结果项 | `src/features/search/SearchResultItem.vue` |
+| 导出范围选项 | `src/features/export/ExportScopeOption.vue` |
+| 回收站列表项 | `src/features/trash/TrashListItem.vue` |
+| 下拉选择器 | 优先复用 Element Plus Select |
+| Toast 通知 | 优先复用 Element Plus Notification |
+| 确认弹窗 | 优先复用 Element Plus Dialog，由业务组件提供文案和风险语义 |
+
+设计变量基线：
+
+- 字体：界面使用 Inter，Markdown 源码使用 Geist Mono，并提供本地或随安装包分发的离线资源。
+- 主题：`light`、`dark` 两套模式，另由系统主题映射到两套变量。
+- 主强调色：`#D97757`；危险操作使用 `#C65D5D`，不得用主强调色伪装永久删除。
+- 间距：4、8、12、16、20、24、32。
+- 圆角：8、10 为主。
+- macOS 主工作台：1440×900，左栏 240 px，中栏 340 px，编辑区自适应。
+- Windows 适配：1366×768，左栏 210 px，中栏 320 px，编辑区自适应。
+- 窄窗口：左栏可折叠为图标导航，中栏最小 280 px，编辑区保持主导。
+- 长标题：列表单行省略，编辑区保留完整内容。
+- 长标签：单行优先，溢出显示“+N”，选择器内展示全部。
+- 深层分类：最多五级，空间不足时保留完整路径提示。
+
+### 2.3 文档一致性处理
+
+| 编号 | 发现 | 处理结论 |
+|---|---|---|
+| C01 | PRD 的 Asset 表含 `note_id`，同时又要求同一资源可被多条笔记引用 | 数据库采用 `assets`＋`note_assets` 多对多关系，满足共享引用和安全回收 |
+| C02 | PRD 示例使用 `assets/{note-id}/`，共享资源会使物理归属不稳定 | 内部文件统一使用 `assets/{asset-id}.{extension}`；导出结构仍严格遵循根级 `assets` |
+| C03 | PRD 将分类／标签管理描述为页面或弹窗，Pencil 最终稿采用完整管理页面 | 使用 Hash 路由页面；重命名、合并、删除等局部动作使用 Dialog |
+| C04 | PRD 写有“主动触发剪贴板笔记”，但非目标明确禁止从剪贴板新建笔记 | 以非目标为准，只在已打开笔记的编辑器粘贴事件中读取剪贴板 |
+| C05 | PRD 要求删除分类分支后支持笔记恢复，但未要求恢复分类节点 | 分类节点删除，分支内笔记软删除并记录原分类 ID 与路径；原分类不存在时恢复到未分类 |
+| C06 | PRD 对空标题只规定显示规则，没有规定是否回写数据库 | 数据库保留用户标题；列表展示时动态回退到正文首行或“无标题笔记” |
+| C07 | PRD 未定义“大图片”阈值 | 不在计划中静默假设，T04 前通过 D01 决策门确认 |
+| C08 | 技术设计中的目录示例使用 `memo-box/` 和 `docs/PRD.md` | 当前仓库名和 `docs/PRD-V1.0.md` 是实际事实；不为匹配示例重命名 |
+
+## 3. 项目目标与非目标
+
+### 3.1 V1.0 项目目标
+
+1. 交付 macOS 首发、Windows 兼容的纯本地桌面应用。
+2. 完成“记录 → 整理 → 查找 → 恢复 → 导出”的业务闭环。
+3. 支持纯 Markdown 源码编辑、纯文本粘贴、图片粘贴、约 1 秒自动保存和撤销／重做。
+4. 支持最多五级分类、多标签、AND 多标签筛选、置顶、最近编辑和排序。
+5. 支持标题、正文、分类名和标签名的全局搜索，回收站内容默认排除。
+6. 支持单篇、分类、含子分类和标签维度的 Markdown 导出。
+7. 所有业务数据、资源、索引和配置保存在系统应用数据目录，核心功能完全离线。
+8. 在约 10,000 条文本笔记规模下达到 PRD 的启动、列表和搜索性能目标。
+9. 建立 Migration、事务、原子文件写入、失败补偿、最小 Capability 和敏感日志边界。
+10. 建立可重复执行的前端、Rust、原生构建和双平台验收流程。
+
+### 3.2 V1.0 明确非目标
+
+- 不实现注册、登录、账号、云同步、分享、协作或在线存储。
+- 不实现备份、恢复、自定义数据目录或数据目录迁移。
+- 不实现在线 AI、OCR、语音转写、网页抓取或遥测。
+- 不实现富文本、所见即所得、Markdown 预览或历史版本。
+- 不实现从剪贴板直接新建笔记。
+- 不实现图片主动转码、压缩或尺寸调整；仅在无法取得原编码时无损保存为 PNG。
+- 不实现 PRD P2 的批量导入、全局快速记录窗口、更多附件类型和自定义编辑器主题。
+- 不为轻微视觉差异添加脆弱的 Element Plus 私有选择器覆盖。
+
+### 3.3 “项目完成”的定义
+
+V1.0 完成必须同时满足：
+
+1. T00～T14 全部完成，T15 的发布授权项已获批准并完成。
+2. PRD P0 和 V1.0 推荐范围全部有实现与验收证据。
+3. Pencil 的页面、组件、空状态、异常状态、主题和两档桌面布局均已映射。
+4. 全量前端与 Rust 质量门通过。
+5. macOS DMG 与 Windows NSIS 安装包完成原生验收。
+6. 离线、隐私、数据一致性、10,000 条笔记性能和异常恢复通过。
+7. 发布文档、版本、Migration 版本、安装包版本和 Git 标签一致。
+
+## 4. 当前项目基线
+
+### 4.1 Git 与文件事实
+
+- 分支：`develop`，与 `origin/develop` 同步。
+- 工作区：制定计划前无未提交修改。
+- 当前提交：`fc3c6f4 docs: 增加 AI Agent 规则文件`。
+- 已跟踪：README、PRD、技术设计、UI 提示词、Pencil 设计稿、AGENTS／CLAUDE 规则。
+- 当前不存在：`package.json`、锁文件、`src/`、`src-tauri/`、数据库文档、IPC 文档、应用代码和自动化测试。
+- 当前 README 只有项目标题。
+
+### 4.2 完成度
+
+| 范围 | 状态 | 证据 |
+|---|---|---|
+| 产品需求 | 已完成 | `docs/PRD-V1.0.md` |
+| 技术选型与架构 | 已完成 | `docs/TECHNICAL-DESIGN.md` |
+| 高保真 UI 与交互 | 已完成 | `docs/design/memo-box.pen` |
+| 工程规则 | 已完成 | `AGENTS.md`、`CLAUDE.md` |
+| 总开发路线 | 已完成 | 本文档 |
+| 前端工程 | 未开始 | 无 `package.json` 和 `src/` |
+| Tauri／Rust 工程 | 未开始 | 无 `src-tauri/` |
+| SQLite／Migration | 未开始 | 无数据库代码 |
+| 自动化测试 | 未开始 | 无测试配置和测试文件 |
+| 双平台构建与发布 | 未开始 | 无应用工程和发布产物 |
+
+## 5. 总体技术路线
+
+### 5.1 分层调用链
+
+```text
+Vue View / Feature Component
+  ↓
+Composable / Pinia Store
+  ↓
+TypeScript Service
+  ↓
+Tauri Command / Channel
+  ↓
+Rust Service
+  ↓
+Repository
+  ↓
+SQLite / 受控文件系统
+```
+
+约束：
+
+- Vue 组件不得直接调用 `invoke()`。
+- Command 只做反序列化、基础校验、线程调度和 Service 调用。
+- Service 承担业务规则、事务边界、数据库与文件补偿。
+- Repository 只负责参数化 SQL 和实体映射。
+- 阻塞的数据库、文件、哈希和导出操作必须离开 Tauri 主线程。
+- 前端不得接收或拼接可用于访问任意文件的绝对路径。
+
+### 5.2 前端路线
+
+- Vue 3 Composition API 和 `<script setup lang="ts">`。
+- Vue Router Hash 模式承载工作台、分类、标签、搜索、回收站和设置。
+- Pinia 保存当前筛选、选中笔记、编辑草稿、保存状态和设置快照。
+- CodeMirror 6 只提供 Markdown 源码编辑、选区、历史、快捷键和粘贴接入。
+- Element Plus 按需导入基础组件；复杂业务组件位于 `src/features/`。
+- SCSS 和 CSS Custom Properties 承载 Pencil 变量；Element Plus 覆盖集中到 `_element-plus.scss`。
+- 界面不依赖远程字体、CDN、HTTP 或在线资源。
+
+### 5.3 Rust、SQLite 与文件路线
+
+V1.0 最终数据库实体按任务和 Migration 递增落地：
+
+| 实体 | 用途 |
+|---|---|
+| `notes` | 标题、正文、分类、置顶、软删除和时间 |
+| `categories` | 五级树、父级、同级排序和时间 |
+| `tags` | 全局唯一标签 |
+| `note_tags` | 笔记与标签多对多关系 |
+| `assets` | 原格式、真实扩展名、MIME、尺寸、哈希和相对路径 |
+| `note_assets` | 笔记与资源多对多关系 |
+| `app_settings` | 主题、排序、字体、分类计数和默认导出目录 |
+| `recovery_drafts` | 自动保存持续失败时的可恢复草稿元数据 |
+| `notes_fts` | T08 通过 V002 新增标题和正文全文索引；分类名和标签名通过关系查询并入结果 |
+
+关键策略：
+
+- `rusqlite` 使用 bundled 模式，启动时启用外键、WAL、NORMAL 同步和 5000 ms busy timeout。
+- 所有写入使用事务；索引更新和业务写入保持同一事务。
+- Migration 按 `V001__...sql` 递增，执行记录和结构版本可查询。
+- 文件使用临时文件写入、同步、格式校验后原子移动。
+- 图片文件成功后才提交资源记录和 Markdown 引用；任一步失败执行补偿。
+- 资源按内容哈希识别重复，只有引用计数为零时才能删除文件。
+- 搜索索引可重建，原始笔记数据不依赖索引恢复。
+
+### 5.4 原生能力与安全路线
+
+- 只启用技术设计已列出的 dialog、clipboard-manager、opener、log、window-state 和 single-instance 能力。
+- Capability 限定到实际 Command 和受控目录，不开放 Shell、任意 HTTP 或任意文件系统。
+- 应用数据目录和系统 Documents 目录由 Tauri 路径 API 获取，不硬编码用户目录。
+- 日志只记录错误码、实体 ID、步骤和耗时，不记录正文、剪贴板、搜索词或图片内容。
+- 所有路径先规范化，再验证是否位于允许根目录；导出目录只来自用户选择或已保存设置。
+- 正式发布前检查依赖许可证、漏洞、Capability、CSP 和远程请求。
+
+### 5.5 测试路线
+
+| 层级 | 重点 |
+|---|---|
+| 前端单元测试 | Store、Composable、保存状态机、路径展示、筛选和组件交互 |
+| Vue 组件测试 | 工作台、编辑器桥接、分类树、标签、搜索、回收站、导出、设置 |
+| Rust 单元测试 | 业务规则、路径、格式嗅探、文件名、相对路径和错误映射 |
+| Repository／Migration 测试 | 临时 SQLite、事务、约束、递归分类、FTS 和迁移升级 |
+| 文件集成测试 | 临时目录、原子写入、补偿、资源去重和垃圾回收 |
+| 原生验收 | Tauri 应用中的剪贴板、窗口、目录选择、打开目录和退出前保存 |
+| 性能测试 | 10,000 条笔记、深层分类、长标签、搜索、列表和导出 |
+| 双平台验收 | macOS DMG、Windows NSIS、快捷键、路径、文件名和系统窗口差异 |
+
+### 5.6 质量门
+
+T01 完成后，下列命令组成所有代码任务的 `QG-FULL`：
+
+```bash
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+cargo fmt --check --manifest-path src-tauri/Cargo.toml
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml
+git diff --check
+```
+
+说明：
+
+- 当前尚无应用工程，所以这些命令在 T00 不能执行。
+- `pnpm dev` 或 `pnpm tauri:dev` 只能证明进程启动，不能单独作为业务通过证据。
+- 每个任务还必须执行任务专属测试和原生应用验收。
+- Tauri 相关任务至少执行当前平台 debug build。
+
+## 6. 里程碑、依赖和执行顺序
+
+```mermaid
+flowchart LR
+  T00["T00 总路线"] --> T01["T01 桌面骨架"]
+  T01 --> T02["T02 本地数据启动"]
+  T02 --> T03["T03 笔记与自动保存"]
+  T03 --> T04["T04 图片资源"]
+  T04 --> T05["T05 回收站"]
+  T05 --> T06["T06 五级分类"]
+  T06 --> T07["T07 多标签"]
+  T07 --> T08["T08 全局搜索"]
+  T08 --> T09["T09 Markdown 导出"]
+  T09 --> T10["T10 设置与偏好"]
+  T10 --> T11["T11 桌面体验完善"]
+  T11 --> T12["T12 性能安全加固"]
+  T12 --> T13["T13 macOS 候选"]
+  T13 --> T14["T14 Windows 候选"]
+  T14 --> T15["T15 正式发布"]
+```
+
+| 里程碑 | 业务结果 | 任务 | 完成出口 |
+|---|---|---|---|
+| M0 规划与工程基座 | 文档和桌面空壳可重复构建 | T00～T02 | 原生应用离线启动并安全初始化本地数据 |
+| M1 快速记录 | 用户能创建、编辑、自动保存和粘贴图片 | T03～T04 | 一条含文本和原格式图片的笔记可稳定留存 |
+| M2 整理与恢复 | 用户能删除恢复、分类和多标签整理 | T05～T07 | 回收站、五级分类、多标签筛选完整可用 |
+| M3 找回与带走 | 用户能搜索并导出 Markdown | T08～T09 | 搜索和四种范围导出可验收 |
+| M4 个性化与桌面体验 | 设置、主题、快捷键、状态和适配完整 | T10～T11 | Pencil 页面和关键状态完成映射 |
+| M5 发布候选 | 性能、安全、macOS、Windows 达标 | T12～T14 | DMG 与 NSIS 候选包通过验收 |
+| M6 正式发布 | 签名、公证、版本和发布材料一致 | T15 | 获授权后完成 V1.0 发布 |
+
+## 7. 任务明细
+
+### T00：基线审计与总开发路线
+
+- **状态**：已完成。
+- **目标**：把 PRD、Pencil、技术设计、仓库事实和项目规则统一为可执行路线。
+- **输入依据**：三份核心来源、`AGENTS.md`、`CLAUDE.md`、Git 历史和当前文件清单。
+- **涉及文件**：`docs/development-plan.md`。
+- **前置依赖**：无。
+- **执行步骤**：
+  1. 完整读取 PRD 和技术设计。
+  2. 通过 Pencil MCP 读取 14 个画板、15 个复用组件、变量、布局和状态。
+  3. 盘点 Git、目录、脚本、已完成内容和缺口。
+  4. 形成冲突处理、技术路线、里程碑、任务、状态、风险和决策门。
+  5. 对任务必需字段、依赖无环、PRD／UI 覆盖和命令真实性做复审。
+- **验证命令**：
+
+  ```bash
+  git diff --check -- docs/development-plan.md
+  rg -n '^### T[0-9]{2}：' docs/development-plan.md
+  rg -n '目标|输入依据|涉及文件|前置依赖|执行步骤|验证命令|验收标准|Git 提交说明' docs/development-plan.md
+  git status --short
+  ```
+
+- **验收标准**：
+  - 三份来源均有明确映射。
+  - 任务按业务闭环纵向拆分，信息字段完整，依赖无环。
+  - 当前状态、阻塞、风险和调整记录完整。
+  - 未引入第三方规划工具，未修改产品范围。
+- **Git 提交说明**：建议提交 `docs: 制定 MemoBox V1.0 总开发路线`；只暂存本文件，不自动提交。
+
+### T01：可运行的桌面应用骨架与质量门
+
+- **状态**：待执行，下一任务。
+- **目标**：建立可在 macOS 原生启动的 Tauri 2＋Vue 3 空壳，落地 Pencil 主题变量、Hash 路由和全量质量命令。
+- **输入依据**：技术设计第 1～4、8～10 节；Pencil 01、02、12；项目规则。
+- **涉及文件**：`package.json`、`pnpm-lock.yaml`、`.npmrc`、`index.html`、Vite／TypeScript／Vitest／Oxfmt／Oxlint 配置、`src/main.ts`、`src/App.vue`、`src/router/index.ts`、`src/layouts/`、`src/styles/`、`src-tauri/Cargo.toml`、`src-tauri/Cargo.lock`、`src-tauri/tauri.conf.json`、`src-tauri/capabilities/default.json`、`src-tauri/src/main.rs`、`src-tauri/src/lib.rs`。
+- **前置依赖**：T00。
+- **执行步骤**：
+  1. 使用稳定版本初始化 pnpm、Vite、Vue、Tauri 和 Rust；启用精确版本并生成锁文件。
+  2. 配置 Element Plus 按需导入、Pinia、Vue Router Hash 模式、SCSS 和 CodeMirror 依赖。
+  3. 建立最小目录与应用壳，不预建无业务用途的抽象。
+  4. 将 Pencil 颜色、字体、间距和圆角写入 `_tokens.scss`、`_themes.scss`。
+  5. 建立空工作台路由、应用级错误边界和离线字体资源。
+  6. 配置 Oxfmt、Oxlint、vue-tsc、Vitest、rustfmt、Clippy 和脚本。
+  7. 增加应用壳与路由 smoke test。
+- **验证命令**：
+
+  ```bash
+  pnpm install --frozen-lockfile
+  pnpm format:check
+  pnpm lint
+  pnpm typecheck
+  pnpm test
+  pnpm build
+  cargo fmt --check --manifest-path src-tauri/Cargo.toml
+  cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+  cargo test --manifest-path src-tauri/Cargo.toml
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - `pnpm tauri:dev` 可启动原生窗口，静态 Vite 预览不被当作 Tauri 能力证据。
+  - 应用离线启动，无远程字体、CDN 和网络请求。
+  - 路由、Pinia、Element Plus、SCSS 和测试链可运行。
+  - Pencil 浅色变量和应用壳尺寸正确，Windows 适配暂不提前实现。
+  - 未开放 Shell、HTTP 或任意文件系统能力。
+- **Git 提交说明**：`chore: 初始化 MemoBox 桌面应用骨架`。
+
+### T02：本地数据目录、数据库迁移与启动闭环
+
+- **状态**：待执行。
+- **目标**：原生应用启动时安全创建固定数据目录、初始化 SQLite、执行 Migration，并向前端返回可诊断的启动快照。
+- **输入依据**：PRD 6、7.9、9.1、10.2～10.3；技术设计 5～7；Pencil 09、11。
+- **涉及文件**：`docs/DATABASE.md`、`docs/IPC.md`、`src-tauri/migrations/V001__initial_schema.sql`、`src-tauri/src/database/`、`src-tauri/src/domain/`、`src-tauri/src/repositories/`、`src-tauri/src/services/bootstrap.rs`、`src-tauri/src/commands/bootstrap.rs`、`src-tauri/src/dto/`、`src-tauri/src/lib.rs`、`src/services/bootstrap.ts`、`src/stores/app.ts`、启动错误组件及测试。
+- **前置依赖**：T01。
+- **执行步骤**：
+  1. 先编写数据库实体、字段、约束、索引、版本和 IPC 启动契约。
+  2. 创建系统应用数据目录下的 database、assets、temp、logs、config。
+  3. 配置外键、WAL、NORMAL synchronous 和 busy timeout。
+  4. 实现只增不改的 Migration 执行器和迁移失败保护。
+  5. 创建 V1 核心表、唯一约束、外键和事务测试。
+  6. 在阻塞线程执行初始化，Command 只返回启动快照。
+  7. 前端在初始化成功后进入工作台；失败时进入只读诊断状态，不继续写入。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run bootstrap
+  cargo test --manifest-path src-tauri/Cargo.toml migration
+  cargo test --manifest-path src-tauri/Cargo.toml bootstrap
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 首次启动创建目录和数据库；重复启动幂等。
+  - Migration 失败时停止正常业务并显示明确错误。
+  - 数据目录不可写、数据库占用和损坏均有稳定错误码，日志不含正文。
+  - SQLite 只由 Rust 访问，所有 SQL 参数化，写入使用事务。
+  - 数据结构版本可在设置任务中直接复用。
+- **Git 提交说明**：`feat: 建立本地数据初始化与迁移闭环`。
+
+### T03：笔记工作台、纯文本编辑与自动保存闭环
+
+- **状态**：待执行。
+- **目标**：用户可以新建、选择、编辑和自动保存纯 Markdown 笔记，并在切换或退出前可靠落盘。
+- **输入依据**：PRD 6.1、7.1、7.4.1、7.5、7.6、8.1～8.2、11；Pencil 02、03、10、11、13。
+- **涉及文件**：`docs/IPC.md`、必要时更新 `docs/DATABASE.md` 并新增 Migration、`src/views/WorkbenchView.vue`、`src/layouts/WorkspaceLayout.vue`、`src/features/notes/`、`src/features/editor/`、`src/stores/notes.ts`、`src/composables/useAutoSave.ts`、`src/services/notes.ts`、Rust note Command／Service／Repository／DTO 及测试。
+- **前置依赖**：T02。
+- **执行步骤**：
+  1. 先定义创建、列表、详情、保存和空笔记清理的 IPC 契约。
+  2. 实现笔记 Repository 和 Service，返回明确类型和稳定错误码。
+  3. 实现三栏工作台、笔记列表、标题输入和 CodeMirror 6 源码编辑器。
+  4. 粘贴时显式读取 `text/plain`，忽略 HTML 和富文本样式。
+  5. 建立“正在编辑 → 保存中 → 已保存／保存失败”状态机和 1 秒防抖。
+  6. 切换笔记、关闭窗口、退出、立即保存快捷键前强制 flush。
+  7. 保存失败时保留内存草稿并写入可用的恢复草稿；持续失败禁止静默关闭。
+  8. 标题为空时仅在展示层回退；完全空白且无资源的临时笔记在离开时清理。
+  9. CodeMirror 正文历史与标题编辑历史覆盖当前会话撤销／重做。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run notes
+  pnpm test -- --run auto-save
+  cargo test --manifest-path src-tauri/Cargo.toml notes
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 用户主动创建笔记后可立即输入，停止约 1 秒显示已保存。
+  - 连续输入不会每键写库；切换笔记和关闭窗口不会丢失已编辑内容。
+  - 富文本粘贴只保留纯文本、换行、缩进和制表符。
+  - 保存失败保留草稿并允许重试；未保存内容不会被下一笔记覆盖。
+  - 空标题展示规则、空笔记清理、默认排序和列表截断符合 PRD。
+  - 撤销／重做只覆盖当前会话，不伪装为历史版本。
+- **Git 提交说明**：`feat: 完成笔记编辑与自动保存闭环`。
+
+### T04：图片粘贴与本地资源生命周期
+
+- **状态**：待执行，受 D01 约束。
+- **目标**：在已打开的笔记中粘贴 PNG、JPEG、WebP 或 GIF，按可获得的原编码保存并插入有效 Markdown 引用。
+- **输入依据**：PRD 6.4、7.4.2～7.4.3、7.5.3、8.3、9.2、14；Pencil 11；技术设计 7。
+- **涉及文件**：`docs/IPC.md`、`docs/DATABASE.md`、必要的新增 Migration、Tauri clipboard Capability、`src/features/editor/useClipboardPaste.ts`、`src/features/editor/MissingAssetNotice.vue`、`src/services/assets.ts`、Rust asset Command／Service／Repository、格式嗅探、原子写入和测试。
+- **前置依赖**：T03；D01 必须在实现“大图片”交互前解决。
+- **执行步骤**：
+  1. 先固定图片保存请求、结果、进度和错误契约。
+  2. 从编辑器粘贴事件读取原始文件／编码字节；只提供系统位图时走 PNG 无损兜底。
+  3. Rust 根据真实文件头校验 PNG、JPEG、WebP、GIF，不信任名称、扩展名或 MIME。
+  4. 计算 SHA-256，写临时文件，校验尺寸和可读性后原子移动。
+  5. 在同一业务事务中创建资源与引用；失败时删除临时或孤立文件。
+  6. 成功后在当前光标插入相对 Markdown 引用并触发自动保存。
+  7. 图片失败时不插入引用；缺失资源保留原引用并显示提示。
+  8. 增加四种格式、GIF 动图字节保持、PNG 兜底、磁盘不足、权限和补偿测试。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run clipboard
+  cargo test --manifest-path src-tauri/Cargo.toml asset
+  cargo test --manifest-path src-tauri/Cargo.toml image_format
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 能取得原始编码时，PNG、JPEG、WebP、GIF 保存前后格式与字节语义一致。
+  - 无原始编码时明确保存为 PNG，扩展名不伪装。
+  - GIF 来源提供完整字节时保持动图。
+  - 写入失败、格式不支持和磁盘不足不会产生无效 Markdown、孤立记录或半文件。
+  - 同一资源可被多笔记引用，永久删除前可据引用计数判断。
+  - 原生 macOS 粘贴完成验收；Windows 行为在 T14 复验。
+- **Git 提交说明**：`feat: 完成图片粘贴与资源生命周期`。
+
+### T05：笔记删除、回收站与永久清理闭环
+
+- **状态**：待执行。
+- **目标**：普通删除可恢复，永久删除和清空有二次确认，并只清理不再引用的图片。
+- **输入依据**：PRD 3.3、7.1.3、9.2、10.2、12.1～12.2；Pencil 08、10、11。
+- **涉及文件**：`docs/IPC.md`、`docs/DATABASE.md`、必要的新增 Migration、`src/views/TrashView.vue`、`src/features/trash/`、`src/services/trash.ts`、`src/stores/trash.ts`、Rust trash Service／Repository／Command、资源垃圾回收及测试。
+- **前置依赖**：T04。
+- **执行步骤**：
+  1. 先定义软删除、恢复、永久删除、清空和影响统计契约。
+  2. 普通删除记录删除时间、原分类 ID 和可读路径，资源暂不删除。
+  3. 恢复时优先回原分类；分类不存在时恢复为未分类。
+  4. 永久删除在事务中删除笔记关系，再清理引用计数为零的资源文件。
+  5. 数据库和文件无法原子化时记录待清理项并提供幂等补偿。
+  6. 清空回收站以事务处理数据库关系，逐项报告文件清理失败。
+  7. 实现 Pencil 的回收站、空状态、普通删除、永久删除和清空确认。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run trash
+  cargo test --manifest-path src-tauri/Cargo.toml trash
+  cargo test --manifest-path src-tauri/Cargo.toml asset_gc
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 普通删除仅进入回收站，默认永不自动清空。
+  - 恢复、永久删除和清空结果可重复验证，危险操作均二次确认。
+  - 共享图片仍有引用时不会被删除；最后一个引用永久删除后才清理。
+  - 清理失败不会回滚已成功业务数据，但有明确结果和可重试补偿。
+  - 回收站笔记不出现在普通列表和后续搜索。
+- **Git 提交说明**：`feat: 完成回收站与资源清理闭环`。
+
+### T06：五级分类管理、统计与分类筛选闭环
+
+- **状态**：待执行。
+- **目标**：用户可以创建、重命名、拖拽排序、移动和删除最多五级分类，并按分类树筛选笔记。
+- **输入依据**：PRD 6.2、7.2、8.4、9.4、12；Pencil 04、13。
+- **涉及文件**：`docs/IPC.md`、`docs/DATABASE.md`、必要的新增 Migration、`src/views/CategoriesView.vue`、`src/features/categories/`、`src/stores/categories.ts`、`src/services/categories.ts`、Rust category Command／Service／Repository、递归 CTE 和测试。
+- **前置依赖**：T05。
+- **执行步骤**：
+  1. 先定义树、创建、重命名、移动、排序、影响统计和两种删除契约。
+  2. Service 在事务内校验同级去空格重名、最大五级、循环和整棵子树深度。
+  3. 用递归查询返回树、完整路径和包含后代的笔记数量。
+  4. 使用 Element Plus Tree 的稳定能力实现展开、选择和拖拽，不引入额外拖拽库。
+  5. 拖拽时同时显示目标父级和插入位置；非法目标前端预防、后端兜底。
+  6. “仅删除当前分类”把直属笔记和子分类移到父级。
+  7. “删除整个分支”软删除分支笔记、记录原路径，再删除分类节点。
+  8. 分类筛选默认包含全部后代；P1 的“仅直属”不纳入 V1.0。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run categories
+  cargo test --manifest-path src-tauri/Cargo.toml category
+  cargo test --manifest-path src-tauri/Cargo.toml recursive
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 第五级不能新增子分类，移动后任何后代超过五级都被拒绝。
+  - 不能移动到自身或后代，同级不能重名。
+  - 同级排序、跨级移动、路径和递归计数一致。
+  - 两种删除模式的受影响数量、笔记去向和子分类去向完全符合 PRD。
+  - 分支删除后的笔记可在回收站恢复到未分类，且显示原路径。
+- **Git 提交说明**：`feat: 完成五级分类管理闭环`。
+
+### T07：标签管理、合并与多标签筛选闭环
+
+- **状态**：待执行。
+- **目标**：用户可以管理全局唯一标签，为笔记快速创建和关联多个标签，并按 AND 逻辑筛选。
+- **输入依据**：PRD 6.3、7.3、12.2；Pencil 05、02 的标签选择器。
+- **涉及文件**：`docs/IPC.md`、`docs/DATABASE.md`、必要的新增 Migration、`src/views/TagsView.vue`、`src/features/tags/`、`src/stores/tags.ts`、`src/services/tags.ts`、Rust tag Command／Service／Repository 及测试。
+- **前置依赖**：T06。
+- **执行步骤**：
+  1. 先定义标签 CRUD、搜索、合并、笔记关联和多标签筛选契约。
+  2. Rust 统一 trim、空值校验、全局唯一和重复关系幂等。
+  3. 重命名到已有名称时先返回合并影响，再经用户确认执行事务合并。
+  4. 删除标签只删除关系和标签，不修改笔记正文、分类或资源。
+  5. 实现标签管理页的搜索、统计、排序和操作。
+  6. 在编辑器中实现标签选择、移除和快速创建。
+  7. 多标签筛选使用全部包含的 AND 逻辑，不提前实现 OR。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run tags
+  cargo test --manifest-path src-tauri/Cargo.toml tag
+  cargo test --manifest-path src-tauri/Cargo.toml tag_filter
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 标签 trim 后全局唯一，重复添加不产生重复关系。
+  - 合并前显示影响，合并后所有笔记关系无损。
+  - 删除标签不会删除或改变笔记。
+  - 编辑器可快速创建和关联多个标签。
+  - 多标签筛选严格使用 AND，并保持当前筛选上下文。
+- **Git 提交说明**：`feat: 完成标签管理与多标签筛选`。
+
+### T08：全局搜索与上下文返回闭环
+
+- **状态**：待执行。
+- **目标**：用户输入一个或多个关键词后，能在约 300 ms 目标内找到标题、正文、分类名或标签名匹配的非回收站笔记。
+- **输入依据**：PRD 7.1.5、7.7、9、10.1、12；Pencil 06、10。
+- **涉及文件**：`docs/DATABASE.md`、`docs/IPC.md`、`src-tauri/migrations/V002__add_note_search.sql`、搜索 Repository／Service／Command、`src/views/SearchView.vue`、`src/features/search/`、`src/stores/search.ts`、`src/services/search.ts` 及测试。
+- **前置依赖**：T07。
+- **执行步骤**：
+  1. 先记录搜索字段、分词、排序、分页、错误和索引重建契约。
+  2. 新增 FTS5 索引和同步机制；不得修改 V001。
+  3. 将空格分隔关键词转为 AND；分类和标签匹配通过关系查询并入笔记结果。
+  4. 统一排除回收站，大小写不敏感，覆盖中文、英文、数字和常见符号。
+  5. 结果按相关度、更新时间稳定排序，提供分页或游标。
+  6. 前端 250 ms 防抖，点击结果打开笔记并保留查询和筛选上下文。
+  7. 清空查询返回之前位置，不实现关键词高亮和正文精确定位。
+  8. 增加索引损坏后的可重建路径和 10,000 条数据基准。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run search
+  cargo test --manifest-path src-tauri/Cargo.toml search
+  cargo test --manifest-path src-tauri/Cargo.toml fts_rebuild
+  cargo test --manifest-path src-tauri/Cargo.toml search_10000
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 标题、正文、分类名和标签名均可找到所属笔记。
+  - 多关键词使用 AND，回收站永不进入结果。
+  - 清空搜索返回全部笔记或此前位置，点击结果后上下文不丢失。
+  - 界面没有高亮和正文定位的伪功能。
+  - 10,000 条文本笔记的常见查询达到约 300 ms 目标，超标时先修复再关闭任务。
+- **Git 提交说明**：`feat: 完成全局搜索闭环`。
+
+### T09：单篇、分类和标签 Markdown 导出闭环
+
+- **状态**：待执行。
+- **目标**：用户可选择四种范围导出 Markdown 与原格式图片，并获得进度、取消、成功和部分失败结果。
+- **输入依据**：PRD 3.4、7.8、8.5、9.3、12；Pencil 07、13；技术设计的 dialog／opener。
+- **涉及文件**：`docs/IPC.md`、`src/features/export/`、`src/services/export.ts`、Rust export Command／Service、文件名与相对路径工具、Tauri Channel、dialog／opener Capability 及测试。
+- **前置依赖**：T08。
+- **执行步骤**：
+  1. 先定义导出范围、选项、进度事件、取消、结果和逐项错误契约。
+  2. 从当前笔记、当前分类、分类含子分类或当前标签生成稳定快照。
+  3. 校验目标目录可写，再创建目录结构和根级 `assets`。
+  4. 清理非法文件名，处理空标题和同名序号。
+  5. 按 Markdown 深度计算到根级 `assets` 的相对路径。
+  6. 同一笔记单次只导出一次，同一资源单次只复制一次，保持原格式。
+  7. 使用 Channel 报告总数、当前项、成功和失败；支持用户取消后停止后续写入。
+  8. 单项失败不回滚成功项，结果列出缺失资源和失败原因。
+  9. 完成后可通过受控 opener 打开导出目录。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run export
+  cargo test --manifest-path src-tauri/Cargo.toml export
+  cargo test --manifest-path src-tauri/Cargo.toml export_paths
+  cargo test --manifest-path src-tauri/Cargo.toml export_partial_failure
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 四种范围都导出正确笔记集合。
+  - 分类目录保留层级，所有图片位于导出根级 `assets`。
+  - 多层 Markdown 的图片相对路径可被常见编辑器打开。
+  - 图片格式、扩展名和内容保持一致，重复资源只复制一次。
+  - 冲突命名、缺失资源、不可写目录、部分失败和取消均有确定结果。
+- **Git 提交说明**：`feat: 完成 Markdown 导出闭环`。
+
+### T10：设置、主题与本地偏好闭环
+
+- **状态**：待执行。
+- **目标**：用户可管理 PRD 允许的本地偏好，设置在重启后生效，且不存在被禁止的入口。
+- **输入依据**：PRD 7.9～7.10；Pencil 03、09；技术设计 4、7。
+- **涉及文件**：`docs/IPC.md`、`docs/DATABASE.md`、必要的新增 Migration、`src/views/SettingsView.vue`、`src/features/settings/`、`src/stores/settings.ts`、`src/services/settings.ts`、主题初始化、Rust settings Service／Repository／Command、window-state／opener 配置及测试。
+- **前置依赖**：T09。
+- **执行步骤**：
+  1. 先定义设置字段、默认值、校验和版本显示契约。
+  2. 实现当前数据目录只读展示和受控“打开数据目录”。
+  3. 实现默认导出目录选择、失效目录回退和权限检查。
+  4. 实现更新时间／创建时间／标题排序。
+  5. 实现浅色、深色、跟随系统主题和启动前主题恢复。
+  6. 实现编辑器字体大小和分类计数显示。
+  7. 显示应用版本和数据库结构版本。
+  8. 恢复窗口大小和位置，越界时回退到当前屏幕可见范围。
+  9. 搜索并测试不存在数据目录修改、备份、恢复、登录和同步入口。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run settings
+  pnpm test -- --run theme
+  cargo test --manifest-path src-tauri/Cargo.toml settings
+  pnpm check
+  pnpm exec tauri build --debug
+  ! rg -n '修改数据目录|备份|恢复备份|登录|同步' src
+  git diff --check
+  ```
+
+- **验收标准**：
+  - 所有允许设置保存后立即生效，重启后保持。
+  - 当前数据目录只读，用户只能打开，不能修改或迁移。
+  - 主题、排序、字体、分类计数、默认导出目录和版本符合 Pencil。
+  - 窗口状态不会恢复到不可见屏幕区域。
+  - 产品中无备份、云同步和账号相关入口。
+- **Git 提交说明**：`feat: 完成设置与本地偏好闭环`。
+
+### T11：P1 效率能力、响应式布局与状态完善
+
+- **状态**：待执行。
+- **目标**：补齐置顶、最近编辑、快捷键、空状态、异常反馈、长内容和两档桌面布局，使 Pencil 交付完整落地。
+- **输入依据**：PRD 4.2、5、9、10.5、11；Pencil 01～03、10～13。
+- **涉及文件**：工作台、导航、公共状态组件、快捷键 Composable、样式、Element Plus 主题覆盖、相关 Store／Service 和测试。
+- **前置依赖**：T10。
+- **执行步骤**：
+  1. 实现笔记置顶和“最近编辑”入口，复用现有列表查询，不建立平行数据流。
+  2. 实现新建、搜索、撤销、重做、立即保存、删除和聚焦编辑器快捷键。
+  3. 补齐首次进入、分类、标签、搜索和回收站空状态。
+  4. 补齐保存、图片、磁盘、删除、导出 Toast 和确认状态。
+  5. 验证 1440×900 和 1366×768；实现窄窗口折叠、最小中栏和编辑区优先。
+  6. 处理长标题、长标签、五级分类路径、键盘焦点和只靠颜色无法表达的状态。
+  7. 检查 Element Plus 覆盖只使用公开变量和必要选择器。
+- **验证命令**：
+
+  ```bash
+  pnpm test -- --run shortcuts
+  pnpm test -- --run empty-state
+  pnpm test -- --run responsive
+  pnpm check
+  pnpm exec tauri build --debug
+  git diff --check
+  ```
+
+- **验收标准**：
+  - P1 的置顶、最近编辑、快捷键、主题、排序和分类计数均可用。
+  - 14 个 Pencil 画板和 15 个复用组件都有实现映射或明确复用说明。
+  - 1440×900 与 1366×768 无重叠、裁切和不可操作区域。
+  - 危险操作、失败和空状态都有文案、图标或结构，不只靠颜色。
+  - 长标题、标签和五级路径不会破坏核心布局。
+- **Git 提交说明**：`feat: 完善桌面效率交互与反馈状态`。
+
+### T12：性能、稳定性、隐私与安全加固
+
+- **状态**：待执行。
+- **目标**：在发布候选前证明应用在目标规模、离线和异常条件下满足 PRD，并收敛安全与技术债。
+- **输入依据**：PRD 9～10、12～14；技术设计 5～8、11；全部已完成任务。
+- **涉及文件**：受问题影响的实现和回归测试、性能夹具、Capability、CSP、日志配置、`docs/TECHNICAL-DESIGN.md`、`docs/DATABASE.md`、`docs/IPC.md`、README。
+- **前置依赖**：T11。
+- **执行步骤**：
+  1. 构造 10,000 条笔记、五级分类、长标签和图片引用的确定性测试数据。
+  2. 测量冷启动、列表切换、搜索、自动保存和批量导出。
+  3. 修复主线程阻塞、无界查询、重复渲染和慢 SQL，并记录测量环境。
+  4. 测试数据库占用、磁盘不足、权限丢失、索引损坏、资源缺失和异常退出恢复。
+  5. 断网运行全套核心流程，检查不存在远程请求。
+  6. 审计 Capability、CSP、路径规范化、SQL 参数化、日志脱敏和依赖许可证。
+  7. 运行全量回归和当前平台原生构建。
+- **验证命令**：
+
+  ```bash
+  pnpm check
+  cargo test --manifest-path src-tauri/Cargo.toml --all-targets
+  cargo test --manifest-path src-tauri/Cargo.toml performance
+  cargo test --manifest-path src-tauri/Cargo.toml recovery
+  pnpm exec tauri build --debug
+  rg -n 'http://|https://|v-html|shell' src src-tauri
+  git diff --check
+  ```
+
+- **验收标准**：
+  - macOS 冷启动约 2 秒、普通列表约 200 ms、常见搜索约 300 ms，记录硬件和数据规模。
+  - 自动保存和图片写入不阻塞编辑线程。
+  - 数据库、文件和索引异常有可恢复或明确停止策略。
+  - 核心功能断网可用，无正文、剪贴板、搜索词和图片内容日志。
+  - Capability 和路径访问满足最小权限，未发现任意文件、Shell 或 HTTP 能力。
+- **Git 提交说明**：`perf: 完成发布前性能与安全加固`。
+
+### T13：macOS V1.0 发布候选
+
+- **状态**：待执行。
+- **目标**：在首发平台生成可安装的 macOS DMG，并完成全部核心业务原生验收。
+- **输入依据**：PRD 的 macOS 首发要求、技术设计 11、T12 结果。
+- **涉及文件**：`src-tauri/tauri.conf.json`、应用图标和 bundle 配置、README、`docs/RELEASE.md`、必要的平台修复和回归测试。
+- **前置依赖**：T12。
+- **执行步骤**：
+  1. 固定应用名、标识符、版本、图标、最小系统版本和 DMG 配置。
+  2. 在干净环境执行锁文件安装、全量质量门和 release build。
+  3. 安装 DMG，验证首次启动、升级已有数据库和卸载后数据目录保留语义。
+  4. 原生验收新建、编辑、文本／图片粘贴、分类、标签、搜索、回收站、导出和设置。
+  5. 验证 Finder 目录选择／打开、macOS 快捷键、窗口恢复、单实例和离线运行。
+  6. 记录未签名候选包哈希；签名与公证留给 T15。
+- **验证命令**：
+
+  ```bash
+  pnpm install --frozen-lockfile
+  pnpm check
+  pnpm exec tauri build
+  shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg
+  git diff --check
+  ```
+
+- **验收标准**：
+  - DMG 可安装、启动和卸载，应用数据符合固定目录规则。
+  - macOS 核心流程、异常状态和性能全部通过。
+  - release build 不包含开发服务地址、调试权限或远程依赖。
+  - 候选包哈希、版本和验收记录可追溯。
+- **Git 提交说明**：`build: 生成 macOS V1.0 发布候选`。
+
+### T14：Windows V1.0 兼容与发布候选
+
+- **状态**：待执行，受 D03 约束。
+- **目标**：在真实 Windows 环境生成 NSIS 安装包并证明核心业务与 macOS 一致。
+- **输入依据**：PRD 的 Windows 支持、路径和快捷键要求；Pencil 12；技术设计 11。
+- **涉及文件**：Windows 条件代码、路径和快捷键工具、`src-tauri/tauri.conf.json`、NSIS 配置、README、`docs/RELEASE.md`、平台回归测试。
+- **前置依赖**：T13；具备真实 Windows 构建和验收环境。
+- **执行步骤**：
+  1. 在 Windows 使用锁定依赖和 MSVC 工具链执行全量质量门。
+  2. 修复路径分隔符、非法文件名、Documents／AppData、窗口控制和系统菜单差异。
+  3. 验证 Ctrl 系列快捷键和 1366×768 布局。
+  4. 验证 Windows 剪贴板的 PNG、JPEG、WebP、GIF 原始编码能力和 PNG 兜底。
+  5. 生成 NSIS，执行安装、升级、卸载和数据保留验收。
+  6. 复验完整业务、断网和性能目标，并记录包哈希。
+- **验证命令**：
+
+  ```powershell
+  pnpm install --frozen-lockfile
+  pnpm check
+  pnpm exec tauri build
+  Get-FileHash src-tauri\target\release\bundle\nsis\*.exe -Algorithm SHA256
+  git diff --check
+  ```
+
+- **验收标准**：
+  - Windows 冷启动约 3 秒，核心流程与 macOS 一致。
+  - 1366×768 无布局破损，Ctrl 快捷键无系统冲突。
+  - 剪贴板、文件名、路径和导出相对路径在 Windows 正确。
+  - NSIS 可安装、升级和卸载，版本和哈希可追溯。
+- **Git 提交说明**：`build: 完成 Windows V1.0 适配与候选包`。
+
+### T15：签名、公证与 V1.0 正式发布
+
+- **状态**：阻塞；缺少发布授权、Apple Developer 身份、Windows 签名证书和目标发布渠道。
+- **目标**：在用户明确授权后，对候选包签名、公证，完成最终发布材料和版本标签。
+- **输入依据**：T13、T14 候选包；技术设计 11；用户提供的发布权限和渠道。
+- **涉及文件**：版本文件、`CHANGELOG.md`、README、`docs/RELEASE.md`、发布说明；不把证书、密码或令牌写入仓库。
+- **前置依赖**：T14；D02、D04 解决；用户明确授权生产发布。
+- **执行步骤**：
+  1. 冻结版本、Migration 和候选提交，重新执行全量质量门。
+  2. 使用外部安全凭据完成 macOS 签名、公证和验证。
+  3. 使用外部安全凭据完成 Windows 安装包签名和验证。
+  4. 生成变更日志、安装说明、已知限制和校验和。
+  5. 经用户批准后创建版本提交、Git 标签、上传产物和发布页面。
+  6. 下载已发布产物做最终安装与离线冒烟。
+- **验证命令**：
+
+  ```bash
+  pnpm install --frozen-lockfile
+  pnpm check
+  cargo test --manifest-path src-tauri/Cargo.toml --all-targets
+  codesign --verify --deep --strict --verbose=2 <macOS-app>
+  spctl --assess --type execute --verbose=4 <macOS-app>
+  xcrun stapler validate <macOS-dmg>
+  git diff --check
+  ```
+
+  Windows 还需使用目标签名工具验证安装包签名；具体命令在 D04 确认渠道和证书后补入。
+
+- **验收标准**：
+  - macOS 签名、公证和 stapling 通过，Windows 签名验证通过。
+  - 发布产物版本、数据库版本、提交、标签、说明和哈希一致。
+  - 发布渠道中的安装包可下载、安装、启动并离线完成核心冒烟。
+  - 仓库、日志和发布说明不泄露任何证书、令牌或敏感路径。
+- **Git 提交说明**：经授权后使用 `chore: 准备 MemoBox V1.0 正式发布`；标签建议 `v1.0.0`。未经授权不提交、不打标签、不 push、不上传。
+
+## 8. 当前状态看板
+
+更新时间：2026-07-23。
+
+| 状态 | 任务 |
+|---|---|
+| 已完成 | T00 基线审计与总开发路线 |
+| 进行中 | 无；下一步应从 T01 开始 |
+| 待执行 | T01～T14 |
+| 阻塞 | T15 正式发布 |
+
+| 任务 | 状态 | 前置 | 计划出口 |
+|---|---|---|---|
+| T00 | 已完成 | 无 | 总路线可执行 |
+| T01 | 待执行 | T00 | 原生空壳与质量门 |
+| T02 | 待执行 | T01 | 本地数据安全启动 |
+| T03 | 待执行 | T02 | 笔记与自动保存 |
+| T04 | 待执行 | T03、D01 | 图片粘贴 |
+| T05 | 待执行 | T04 | 回收站 |
+| T06 | 待执行 | T05 | 五级分类 |
+| T07 | 待执行 | T06 | 多标签 |
+| T08 | 待执行 | T07 | 全局搜索 |
+| T09 | 待执行 | T08 | Markdown 导出 |
+| T10 | 待执行 | T09 | 设置与主题 |
+| T11 | 待执行 | T10 | 完整桌面体验 |
+| T12 | 待执行 | T11 | 发布前加固 |
+| T13 | 待执行 | T12 | macOS 候选 |
+| T14 | 待执行 | T13、D03 | Windows 候选 |
+| T15 | 阻塞 | T14、D02、D04、发布授权 | V1.0 正式发布 |
+
+## 9. 决策门、阻塞与风险
+
+### 9.1 必须暂停确认的决策门
+
+| 编号 | 最晚时点 | 状态 | 需要用户确认的内容 |
+|---|---|---|---|
+| D01 | T04 开始前 | 未决 | 单张图片进入“大图片提示”的阈值，以及是否设置硬上限 |
+| D02 | T15 开始前 | 未决 | Apple Developer 身份、签名证书、公证授权和凭据提供方式 |
+| D03 | T14 开始前 | 未决 | 可用的真实 Windows 机器或受信任构建环境；不得擅自引入外部 CI 服务 |
+| D04 | T15 开始前 | 未决 | Windows 代码签名证书、目标发布渠道和生产上传授权 |
+
+处理原则：在到达对应任务前不阻塞本地开发；到达决策门且仍未解决时，停止该任务并说明必要性、收益、成本和替代方案。
+
+### 9.2 当前风险
+
+| 编号 | 风险 | 等级 | 收敛任务 | 缓解方案 |
+|---|---|---|---|---|
+| R01 | macOS／Windows 剪贴板不总能提供原始编码，GIF 尤其不稳定 | 高 | T04、T14 | 原始字节优先；系统位图使用 PNG；按平台建立固定样本验收 |
+| R02 | 图片文件与数据库不能天然原子提交 | 高 | T04、T05 | 临时文件＋原子移动＋事务＋幂等补偿＋孤立资源扫描 |
+| R03 | 五级分类移动和分支删除容易破坏层级或恢复语义 | 高 | T06 | Service 事务、递归校验、影响统计、后端兜底和恢复回归测试 |
+| R04 | 中文全文搜索、符号和相关度在 10,000 条数据下可能超时 | 高 | T08、T12 | FTS5 方案验证、查询计划、稳定分页和索引重建 |
+| R05 | 自动保存与切换／关闭存在竞态 | 高 | T03、T12 | 单笔记保存队列、版本号、防抖 flush、关闭拦截和恢复草稿 |
+| R06 | 导出多层路径、重名和部分失败组合复杂 | 中 | T09 | 纯函数路径测试、导出快照、稳定命名和逐项结果 |
+| R07 | 当前为绿色项目，稳定依赖之间可能存在工具链兼容问题 | 中 | T01 | 一次性选择兼容稳定版本并锁定；未经批准不升级 |
+| R08 | Element Plus 与 Pencil 轻微皮肤差异诱发过度 CSS 覆盖 | 中 | T01、T11 | 官方组件能力优先；只为语义、可用性或不可忽略布局差异定制 |
+| R09 | macOS 当前环境无法证明 Windows 原生行为 | 高 | T14 | 必须在真实 Windows 环境构建和验收，不以静态前端代替 |
+| R10 | 正式签名、公证和发布依赖外部账号与证书 | 阻塞 | T15 | 候选包与正式发布分离，未经授权不触碰生产凭据 |
+
+## 10. PRD 与 UI 覆盖矩阵
+
+| 产品能力 | PRD | Pencil | 任务 |
+|---|---|---|---|
+| 本地启动、目录、数据库 | 3.1、7.9、9.1 | 09、11 | T02 |
+| 笔记新建、编辑、列表 | 7.1 | 02、03、10 | T03 |
+| 纯文本粘贴 | 7.4.1、8.2 | 02、13 | T03 |
+| 自动保存、撤销／重做 | 7.5～7.6 | 01、02、03、11、13 | T03 |
+| 图片粘贴和资源 | 6.4、7.4.2～7.4.3、8.3、9.2 | 11 | T04 |
+| 回收站、恢复、永久删除 | 7.1.3 | 08、10、11 | T05 |
+| 五级分类、统计、删除 | 6.2、7.2、8.4、9.4 | 04、13 | T06 |
+| 标签 CRUD、合并、AND 筛选 | 6.3、7.3 | 05、02 | T07 |
+| 全局搜索 | 7.7 | 06、10 | T08 |
+| Markdown 导出 | 7.8、8.5、9.3 | 07、11、13 | T09 |
+| 设置和固定数据目录 | 7.9～7.10 | 09 | T10 |
+| 置顶、最近编辑、快捷键 | 4.2、11 | 02、03、12 | T11 |
+| 空状态、异常和可用性 | 9、10.5 | 10、11 | T11、T12 |
+| 性能、稳定、隐私、安全 | 10、12～14 | 00、13 | T12 |
+| macOS 首发 | 1、4、10.4、12 | 02、03 | T13 |
+| Windows 支持 | 1、4、10.4、12 | 12 | T14 |
+| 正式发布 | 15、技术设计 11 | 不适用 | T15 |
+
+覆盖结论：
+
+- PRD P0 全部进入 T02～T14。
+- PRD P1 的置顶、最近编辑、快捷键、主题、排序和分类计数进入 T03、T10、T11。
+- PRD P2 和所有非目标未进入实现任务。
+- Pencil 14 个画板和 15 个复用组件均有任务落点。
+
+## 11. 单任务完成与 Git 规则
+
+每个任务必须按以下顺序执行：
+
+1. 将任务状态改为进行中，并记录开始日期和基线提交。
+2. 重读该任务对应的 PRD、Pencil 节点、技术设计、最新数据库和 IPC 文档。
+3. 先更新 `docs/DATABASE.md`／`docs/IPC.md`／本计划，再实现 Migration 和代码。
+4. 只修改当前闭环必需文件，复用已有 Store、Composable、Service、组件和错误类型。
+5. 运行任务专属测试、`QG-FULL`、当前平台 debug build 和原生业务验收。
+6. 对失败定位、修复并重复验证，不能把失败留给后续任务。
+7. 检查 `git status --short`、`git diff --check`、完整差异和敏感信息。
+8. 只暂存当前任务文件，不使用 `git add .`。
+9. 用户要求提交时，创建一个语义清晰的提交；默认不 push。
+10. 回填实际文件、命令、结果、提交哈希、遗留风险和计划调整，再将任务标为已完成。
+
+单任务完成定义：
+
+- 业务正向流程、空状态、失败状态和边界流程均可验收。
+- 公共契约、Migration、调用方、测试和文档同步。
+- 没有跨越架构边界、无 `any` 滥用、无正常业务 `unwrap()`／`expect()`。
+- 没有新增未经批准的依赖、工具、目录或抽象。
+- 自动化检查和原生应用验证均有证据。
+- 无与当前任务无关的暂存内容和敏感信息。
+
+## 12. 计划调整记录
+
+| 日期 | 编号 | 调整 | 原因 | 影响范围 |
+|---|---|---|---|---|
+| 2026-07-23 | A001 | 创建 V1.0 总路线，拆为 T00～T15 | 当前仓库只有需求、设计和技术文档，需要从零建立可执行路线 | 全项目 |
+| 2026-07-23 | A002 | Asset 改为 `assets`＋`note_assets`，物理文件使用全局资源 ID | PRD 同时要求单字段归属和多笔记共享；规范化模型才能安全去重与回收 | T02、T04、T05、T09 |
+| 2026-07-23 | A003 | 分类／标签管理采用完整路由页面 | Pencil 最终稿为完整管理页，信息密度不适合塞入小弹窗；局部危险操作仍用 Dialog | T01、T06、T07 |
+| 2026-07-23 | A004 | 分类分支删除不提供分类节点恢复，只保留笔记恢复所需路径 | PRD 和 Pencil 的回收站只定义笔记恢复，未定义分类恢复 UI | T05、T06 |
+| 2026-07-23 | A005 | 搜索索引安排到 V002，而不修改 V001 | 保持 Migration 只增不改，并让搜索能力独立验收 | T02、T08 |
+| 2026-07-23 | A006 | macOS、Windows 和正式发布拆成三个任务 | 双平台验证环境和签名权限不同，必须分别形成可验收出口 | T13～T15 |
+| 2026-07-23 | A007 | 大图片阈值保留为 D01，不自行设置 | 阈值会改变用户可粘贴内容，属于产品行为歧义 | T04 |
+
+后续调整规则：
+
+- 低风险、可逆、不改变需求范围的调整可直接执行，但必须新增记录。
+- 改变产品行为、不可逆数据操作、安全边界、外部权限、生产环境或第三方工具的调整必须先暂停确认。
+- 任务拆分、编号或依赖变化后，必须同步更新依赖图、里程碑、状态看板、覆盖矩阵和任务引用。
+
+## 13. 路线完整性复审
+
+- [x] 完整读取并交叉检查 PRD、Pencil 和技术设计。
+- [x] 记录当前 Git、文件、脚本和实现完成度。
+- [x] 明确项目目标、非目标和完成定义。
+- [x] 明确架构、数据库、文件、安全、测试和发布路线。
+- [x] 按可独立验收的业务闭环拆分，不按前端／后端／数据库横切。
+- [x] T00～T15 均包含目标、输入、文件、依赖、步骤、命令、验收和提交说明。
+- [x] 依赖图无环，执行顺序唯一。
+- [x] PRD P0、选定 P1、14 个 Pencil 画板和 15 个复用组件全部有任务落点。
+- [x] 当前完成、进行中、待执行、阻塞和风险状态已明确。
+- [x] 业务歧义、外部环境、签名和生产权限已隔离为决策门。
+- [x] 未引入第三方规划工具，未执行生产变更，未修改锁文件或依赖。
