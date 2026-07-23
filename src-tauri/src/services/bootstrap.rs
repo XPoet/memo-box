@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::domain::bootstrap::{BootstrapError, BootstrapSnapshot};
 use crate::repositories::bootstrap::BootstrapRepository;
 use crate::services::assets::AssetsService;
+use crate::services::search::SearchService;
 
 pub struct BootstrapService {
     data_directory: PathBuf,
@@ -18,6 +19,9 @@ impl BootstrapService {
         self.create_required_directories()?;
         let database_path = self.data_directory.join("database").join("memobox.db");
         let schema_version = BootstrapRepository::initialize(&database_path)?;
+        SearchService::new(&self.data_directory)
+            .rebuild()
+            .map_err(|_| BootstrapError::MigrationFailed)?;
         let _ = AssetsService::new(&self.data_directory).cleanup_pending();
 
         Ok(BootstrapSnapshot {
@@ -76,8 +80,8 @@ mod tests {
         let second_snapshot = service.bootstrap()?;
 
         assert_eq!(first_snapshot.status, "ready");
-        assert_eq!(first_snapshot.schema_version, 2);
-        assert_eq!(second_snapshot.schema_version, 2);
+        assert_eq!(first_snapshot.schema_version, 3);
+        assert_eq!(second_snapshot.schema_version, 3);
         for directory_name in ["database", "assets", "temp", "logs", "config"] {
             assert!(data_directory.join(directory_name).is_dir());
         }
@@ -88,12 +92,12 @@ mod tests {
                 row.get(0)
             })?;
         let table_count: u32 = database.query_row(
-      "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('notes', 'categories', 'tags', 'assets', 'app_settings', 'recovery_drafts', 'asset_cleanup_queue')",
+      "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('notes', 'categories', 'tags', 'assets', 'app_settings', 'recovery_drafts', 'asset_cleanup_queue', 'notes_fts')",
       [],
       |row| row.get(0),
     )?;
-        assert_eq!(migration_count, 2);
-        assert_eq!(table_count, 7);
+        assert_eq!(migration_count, 3);
+        assert_eq!(table_count, 8);
 
         Ok(())
     }

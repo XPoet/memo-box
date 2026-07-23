@@ -1,8 +1,8 @@
 # MemoBox IPC 契约
 
-> 契约版本：V003
-> 最后更新：2026-07-23
-> 生效任务：T02～T07 本地数据、笔记、图片、回收站、分类与标签闭环
+> 契约版本：V004
+> 最后更新：2026-07-24
+> 生效任务：T02～T08 本地数据、笔记、图片、回收站、分类、标签与全局搜索闭环
 
 ## 1. 通用规则
 
@@ -22,7 +22,7 @@
 | --------------- | --------- | --------------------------------------------------- |
 | `status`        | `'ready'` | 初始化成功时固定为 `ready`                          |
 | `dataDirectory` | string    | 经系统路径 API 获取的应用数据目录，仅用于设置页展示 |
-| `schemaVersion` | number    | 最后成功执行的 Migration 版本；当前 V002 为 `2`     |
+| `schemaVersion` | number    | 最后成功执行的 Migration 版本；当前 V003 为 `3`     |
 
 ### 失败响应：`BootstrapError`
 
@@ -143,3 +143,31 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 ## 9. 关闭与保存行为
 
 前端自动保存防抖为 1 秒；连续输入期间不得每键调用 `save_note`。切换笔记、立即保存快捷键和窗口关闭请求前必须执行当前笔记的串行 flush。保存失败时保留内存草稿，尝试写入 `recovery_drafts`，并阻止窗口关闭、展示重试入口；不得静默丢弃内容。
+
+## 10. 全局搜索接口
+
+### `search_notes`
+
+请求：`{ query: string, offset?: number, limit?: number }`。
+
+- `query` 去除首尾空格后必须为 1～200 个字符，最多 12 个空格分隔关键词；多个关键词使用 AND。
+- `offset` 默认 `0`，范围 `0～10000`；`limit` 默认 `30`，范围 `1～100`。二者仅用于稳定分页，不接受前端排序字段。
+- 服务端以同一分词规则搜索标题、正文、完整分类路径和标签名，忽略英文大小写，统一排除回收站笔记；不返回命中位置或高亮 HTML。
+
+成功响应：`SearchPage`。
+
+| 字段         | 类型             | 说明                            |
+| ------------ | ---------------- | ------------------------------- |
+| `items`      | `SearchResult[]` | 当前分页的搜索结果              |
+| `total`      | number           | 查询快照中的匹配总数            |
+| `nextOffset` | number ｜ `null` | 下一页偏移；无下一页时为 `null` |
+
+`SearchResult` 包含 `id`、`title`、`contentPreview`、`categoryPath?`、`tagNames`、`updatedAt`。结果按相关度、`updatedAt DESC`、`id DESC` 排序；分类和标签仅作展示和索引字段，前端不得根据它们重新筛选或排序。
+
+### `rebuild_search_index`
+
+无参数。仅在用户主动从搜索错误状态恢复时调用；Rust 在阻塞线程内从原始 `notes`、`categories` 和 `tags` 重建 FTS5 索引。成功返回空值，不返回索引内容、数据库路径或笔记正文。
+
+### 搜索错误码
+
+`SEARCH_VALIDATION_FAILED` ｜ `SEARCH_QUERY_FAILED` ｜ `SEARCH_INDEX_REBUILD_FAILED`

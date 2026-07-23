@@ -55,19 +55,20 @@ watch(
 )
 
 watch(
-  () => [route.query.category, route.query.tags] as const,
-  async ([category, tags]) => {
+  () => [route.query.category, route.query.tags, route.query.note] as const,
+  async ([category, tags, note]) => {
     const categoryId = typeof category === 'string' ? category : undefined
     const tagIds = typeof tags === 'string' ? tags.split(',').filter(Boolean) : []
     if (categoryId !== undefined) {
       await notesStore.loadByCategory(categoryId)
-      return
-    }
-    if (tagIds.length > 0) {
+    } else if (tagIds.length > 0) {
       await notesStore.loadByTags(tagIds)
-      return
+    } else {
+      await notesStore.load()
     }
-    await notesStore.load()
+    if (typeof note === 'string' && notes.value.some((item) => item.id === note)) {
+      await notesStore.selectNote(note)
+    }
   },
   { immediate: true },
 )

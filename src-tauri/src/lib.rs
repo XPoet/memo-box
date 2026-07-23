@@ -15,6 +15,8 @@ pub fn run() -> Result<(), tauri::Error> {
             commands::notes::save_note,
             commands::notes::cleanup_empty_note,
             commands::notes::save_recovery_draft,
+            commands::search::search_notes,
+            commands::search::rebuild_search_index,
             commands::assets::save_pasted_image,
             commands::assets::get_note_asset_health,
             commands::categories::list_categories,

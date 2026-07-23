@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { Clock, Document, Folder, Plus, PriceTag, Setting, Delete } from '@element-plus/icons-vue'
+import {
+  Clock,
+  Delete,
+  Document,
+  Folder,
+  Plus,
+  PriceTag,
+  Search,
+  Setting,
+} from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { CategoryNode } from '@/types/categories'
@@ -21,7 +30,7 @@ const isRecentView = computed(
   () => activeRouteName.value === 'workbench' && route.query.sort === 'updated',
 )
 
-function isActive(name: 'workbench' | 'categories' | 'tags' | 'trash'): boolean {
+function isActive(name: 'workbench' | 'categories' | 'tags' | 'trash' | 'search'): boolean {
   return activeRouteName.value === name
 }
 
@@ -66,6 +75,14 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
       >
         <el-icon><Clock /></el-icon>
         <span>最近编辑</span>
+      </RouterLink>
+      <RouterLink
+        class="sidebar-nav-item"
+        :class="{ 'sidebar-nav-item--active': isActive('search') }"
+        to="/search"
+      >
+        <el-icon><Search /></el-icon>
+        <span>全局搜索</span>
       </RouterLink>
       <RouterLink
         class="sidebar-nav-item"

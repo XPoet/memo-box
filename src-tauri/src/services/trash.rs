@@ -6,6 +6,7 @@ use crate::database::connection::open_database;
 use crate::domain::notes::NoteDetail;
 use crate::domain::trash::{RestoreNoteResult, TrashCleanupResult, TrashError, TrashedNoteSummary};
 use crate::repositories::notes::NotesRepository;
+use crate::repositories::search::SearchRepository;
 use crate::repositories::trash::TrashRepository;
 use crate::services::assets::AssetsService;
 
@@ -25,7 +26,8 @@ impl TrashService {
     pub fn trash(&self, id: &str) -> Result<(), TrashError> {
         let mut connection =
             open_database(&self.database_path).map_err(|_| TrashError::OperationFailed)?;
-        TrashRepository::trash(&mut connection, id, &current_time()?)
+        TrashRepository::trash(&mut connection, id, &current_time()?)?;
+        SearchRepository::rebuild_index(&mut connection).map_err(|_| TrashError::OperationFailed)
     }
 
     pub fn list(&self) -> Result<Vec<TrashedNoteSummary>, TrashError> {
@@ -39,6 +41,8 @@ impl TrashService {
             open_database(&self.database_path).map_err(|_| TrashError::OperationFailed)?;
         let restored_to_uncategorized =
             TrashRepository::restore(&mut connection, id, &current_time()?)?;
+        SearchRepository::rebuild_index(&mut connection)
+            .map_err(|_| TrashError::OperationFailed)?;
         let note: NoteDetail = NotesRepository::find_detail(&connection, id)
             .map_err(|_| TrashError::OperationFailed)?;
         Ok(RestoreNoteResult {
@@ -52,6 +56,8 @@ impl TrashService {
             open_database(&self.database_path).map_err(|_| TrashError::OperationFailed)?;
         let mut result =
             TrashRepository::permanently_delete(&mut connection, id, &current_time()?)?;
+        SearchRepository::rebuild_index(&mut connection)
+            .map_err(|_| TrashError::OperationFailed)?;
         result.pending_file_cleanup_count = AssetsService::new(&self.data_directory)
             .cleanup_pending()
             .map_err(|_| TrashError::OperationFailed)?;
@@ -62,6 +68,8 @@ impl TrashService {
         let mut connection =
             open_database(&self.database_path).map_err(|_| TrashError::OperationFailed)?;
         let mut result = TrashRepository::empty(&mut connection, &current_time()?)?;
+        SearchRepository::rebuild_index(&mut connection)
+            .map_err(|_| TrashError::OperationFailed)?;
         result.pending_file_cleanup_count = AssetsService::new(&self.data_directory)
             .cleanup_pending()
             .map_err(|_| TrashError::OperationFailed)?;

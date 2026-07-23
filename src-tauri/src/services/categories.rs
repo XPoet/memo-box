@@ -9,6 +9,7 @@ use crate::domain::categories::{
 };
 use crate::domain::notes::NoteSummary;
 use crate::repositories::categories::CategoriesRepository;
+use crate::repositories::search::SearchRepository;
 
 pub struct CategoriesService {
     database_path: PathBuf,
@@ -32,19 +33,25 @@ impl CategoriesService {
         let name = normalized_name(name)?;
         let mut connection =
             open_database(&self.database_path).map_err(|_| CategoryError::OperationFailed)?;
-        CategoriesRepository::create(
+        let category = CategoriesRepository::create(
             &mut connection,
             &Uuid::new_v4().to_string(),
             &name,
             parent_id,
             &current_time()?,
-        )
+        )?;
+        SearchRepository::rebuild_index(&mut connection)
+            .map_err(|_| CategoryError::OperationFailed)?;
+        Ok(category)
     }
     pub fn rename(&self, id: &str, name: &str) -> Result<CategoryNode, CategoryError> {
         let name = normalized_name(name)?;
         let mut connection =
             open_database(&self.database_path).map_err(|_| CategoryError::OperationFailed)?;
-        CategoriesRepository::rename(&mut connection, id, &name, &current_time()?)
+        let category = CategoriesRepository::rename(&mut connection, id, &name, &current_time()?)?;
+        SearchRepository::rebuild_index(&mut connection)
+            .map_err(|_| CategoryError::OperationFailed)?;
+        Ok(category)
     }
     pub fn move_category(
         &self,
@@ -60,7 +67,8 @@ impl CategoriesService {
             parent_id,
             ordered_ids,
             &current_time()?,
-        )
+        )?;
+        SearchRepository::rebuild_index(&mut connection).map_err(|_| CategoryError::OperationFailed)
     }
     pub fn impact(&self, id: &str) -> Result<CategoryDeleteImpact, CategoryError> {
         let connection =
@@ -70,7 +78,8 @@ impl CategoriesService {
     pub fn delete(&self, id: &str, mode: CategoryDeleteMode) -> Result<(), CategoryError> {
         let mut connection =
             open_database(&self.database_path).map_err(|_| CategoryError::OperationFailed)?;
-        CategoriesRepository::delete(&mut connection, id, mode, &current_time()?)
+        CategoriesRepository::delete(&mut connection, id, mode, &current_time()?)?;
+        SearchRepository::rebuild_index(&mut connection).map_err(|_| CategoryError::OperationFailed)
     }
     pub fn notes_by_category(
         &self,
@@ -108,7 +117,8 @@ impl CategoriesService {
         }
         transaction
             .commit()
-            .map_err(|_| CategoryError::OperationFailed)
+            .map_err(|_| CategoryError::OperationFailed)?;
+        SearchRepository::rebuild_index(&mut connection).map_err(|_| CategoryError::OperationFailed)
     }
 }
 fn normalized_name(value: &str) -> Result<String, CategoryError> {

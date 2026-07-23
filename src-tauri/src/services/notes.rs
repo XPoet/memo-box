@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::database::connection::open_database;
 use crate::domain::notes::{NoteDetail, NoteError, NoteSummary};
 use crate::repositories::notes::NotesRepository;
+use crate::repositories::search::SearchRepository;
 
 const MAX_TITLE_LENGTH: usize = 4_000;
 const MAX_CONTENT_LENGTH: usize = 4_000_000;
@@ -24,11 +25,13 @@ impl NotesService {
     pub fn create(&self) -> Result<NoteDetail, NoteError> {
         let mut connection =
             open_database(&self.database_path).map_err(|_| NoteError::SaveFailed)?;
-        NotesRepository::create(
+        let note = NotesRepository::create(
             &mut connection,
             &Uuid::new_v4().to_string(),
             &current_time()?,
-        )
+        )?;
+        SearchRepository::rebuild_index(&mut connection).map_err(|_| NoteError::SaveFailed)?;
+        Ok(note)
     }
 
     pub fn list(&self) -> Result<Vec<NoteSummary>, NoteError> {
@@ -45,13 +48,16 @@ impl NotesService {
         validate_note(title, content)?;
         let mut connection =
             open_database(&self.database_path).map_err(|_| NoteError::SaveFailed)?;
-        NotesRepository::save(&mut connection, id, title, content, &current_time()?)
+        let note = NotesRepository::save(&mut connection, id, title, content, &current_time()?)?;
+        SearchRepository::rebuild_index(&mut connection).map_err(|_| NoteError::SaveFailed)?;
+        Ok(note)
     }
 
     pub fn cleanup_empty(&self, id: &str) -> Result<(), NoteError> {
         let mut connection =
             open_database(&self.database_path).map_err(|_| NoteError::SaveFailed)?;
-        NotesRepository::cleanup_empty(&mut connection, id)
+        NotesRepository::cleanup_empty(&mut connection, id)?;
+        SearchRepository::rebuild_index(&mut connection).map_err(|_| NoteError::SaveFailed)
     }
 
     pub fn save_recovery_draft(

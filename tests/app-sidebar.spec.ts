@@ -31,6 +31,7 @@ function createTestRouter() {
       { path: '/categories', name: 'categories', component: EmptyView },
       { path: '/tags', name: 'tags', component: EmptyView },
       { path: '/trash', name: 'trash', component: EmptyView },
+      { path: '/search', name: 'search', component: EmptyView },
     ],
   })
 }
@@ -69,6 +70,7 @@ describe('AppSidebar', () => {
     expect(hrefs).toContain(router.resolve({ name: 'categories' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'tags' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'trash' }).href)
+    expect(hrefs).toContain(router.resolve({ name: 'search' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'workbench', query: { category: 'work' } }).href)
   })
 
