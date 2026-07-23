@@ -5,6 +5,46 @@ use crate::domain::assets::{AssetError, AssetHealth, SavedAsset};
 pub struct AssetsRepository;
 
 impl AssetsRepository {
+    pub fn pending_cleanup_paths(connection: &Connection) -> Result<Vec<String>, AssetError> {
+        let mut statement = connection
+            .prepare(
+                "SELECT relative_path FROM asset_cleanup_queue ORDER BY queued_at, relative_path",
+            )
+            .map_err(|_| AssetError::SaveFailed)?;
+        let rows = statement
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|_| AssetError::SaveFailed)?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|_| AssetError::SaveFailed)
+    }
+
+    pub fn mark_cleanup_succeeded(
+        connection: &mut Connection,
+        relative_path: &str,
+    ) -> Result<(), AssetError> {
+        connection
+            .execute(
+                "DELETE FROM asset_cleanup_queue WHERE relative_path = ?1",
+                params![relative_path],
+            )
+            .map_err(|_| AssetError::SaveFailed)?;
+        Ok(())
+    }
+
+    pub fn mark_cleanup_failed(
+        connection: &mut Connection,
+        relative_path: &str,
+        error_code: &str,
+    ) -> Result<(), AssetError> {
+        connection
+            .execute(
+                "UPDATE asset_cleanup_queue SET attempts = attempts + 1, last_error = ?2 WHERE relative_path = ?1",
+                params![relative_path, error_code],
+            )
+            .map_err(|_| AssetError::SaveFailed)?;
+        Ok(())
+    }
+
     pub fn note_exists(connection: &Connection, note_id: &str) -> Result<bool, AssetError> {
         connection
             .query_row(

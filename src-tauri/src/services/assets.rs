@@ -72,11 +72,52 @@ impl AssetsService {
         AssetsRepository::health(&connection, &self.assets_directory, note_id)
     }
 
+    pub fn cleanup_pending(&self) -> Result<u32, AssetError> {
+        let mut connection =
+            open_database(&self.database_path).map_err(|_| AssetError::StorageUnavailable)?;
+        let paths = AssetsRepository::pending_cleanup_paths(&connection)?;
+        let mut pending_count = 0;
+        for relative_path in paths {
+            let file_path = controlled_asset_path(&self.assets_directory, &relative_path)?;
+            match fs::remove_file(file_path) {
+                Ok(()) => {
+                    AssetsRepository::mark_cleanup_succeeded(&mut connection, &relative_path)?;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    AssetsRepository::mark_cleanup_succeeded(&mut connection, &relative_path)?;
+                }
+                Err(_) => {
+                    AssetsRepository::mark_cleanup_failed(
+                        &mut connection,
+                        &relative_path,
+                        "ASSET_FILE_DELETE_FAILED",
+                    )?;
+                    pending_count += 1;
+                }
+            }
+        }
+        Ok(pending_count)
+    }
+
     fn ensure_storage_directories(&self) -> Result<(), AssetError> {
         fs::create_dir_all(&self.assets_directory).map_err(map_storage_error)?;
         fs::create_dir_all(&self.temp_directory).map_err(map_storage_error)?;
         Ok(())
     }
+}
+
+fn controlled_asset_path(
+    assets_directory: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, AssetError> {
+    let Some(file_name) = relative_path.strip_prefix("assets/") else {
+        return Err(AssetError::SaveFailed);
+    };
+    let path = Path::new(file_name);
+    if path.components().count() != 1 || path.file_name().is_none() {
+        return Err(AssetError::SaveFailed);
+    }
+    Ok(assets_directory.join(file_name))
 }
 
 fn write_atomically(

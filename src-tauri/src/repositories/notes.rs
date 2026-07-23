@@ -51,7 +51,7 @@ impl NotesRepository {
     pub fn find_detail(connection: &Connection, id: &str) -> Result<NoteDetail, NoteError> {
         connection
             .query_row(
-                "SELECT id, title, content, created_at, updated_at
+                "SELECT id, title, content, category_id, created_at, updated_at
                  FROM notes WHERE id = ?1 AND is_deleted = 0",
                 params![id],
                 |row| {
@@ -59,8 +59,9 @@ impl NotesRepository {
                         id: row.get(0)?,
                         title: row.get(1)?,
                         content: row.get(2)?,
-                        created_at: row.get(3)?,
-                        updated_at: row.get(4)?,
+                        category_id: row.get(3)?,
+                        created_at: row.get(4)?,
+                        updated_at: row.get(5)?,
                     })
                 },
             )

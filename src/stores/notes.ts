@@ -9,6 +9,8 @@ import {
   saveRecoveryDraft,
   toNoteError,
 } from '@/services/notes'
+import { listNotesByCategory } from '@/services/categories'
+import { listNotesByTags } from '@/services/tags'
 import type { NoteDetail, NoteError, NoteSummary } from '@/types/notes'
 
 export type SaveStatus = 'idle' | 'editing' | 'saving' | 'saved' | 'failed'
@@ -39,6 +41,32 @@ export const useNotesStore = defineStore('notes', () => {
         selectedNote.value = await getNote(firstNote.id)
         saveStatus.value = 'saved'
       }
+    } catch (failure: unknown) {
+      notes.value = []
+      selectedNote.value = undefined
+      saveStatus.value = 'failed'
+      error.value = toNoteError(failure)
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function loadByCategory(categoryId?: string): Promise<void> {
+    await loadFiltered(() => listNotesByCategory(categoryId))
+  }
+
+  async function loadByTags(tagIds: string[]): Promise<void> {
+    await loadFiltered(() => listNotesByTags(tagIds))
+  }
+
+  async function loadFiltered(fetchNotes: () => Promise<NoteSummary[]>): Promise<void> {
+    isLoading.value = true
+    error.value = undefined
+    try {
+      notes.value = await fetchNotes()
+      const firstNote = notes.value[0]
+      selectedNote.value = firstNote === undefined ? undefined : await getNote(firstNote.id)
+      saveStatus.value = firstNote === undefined ? 'idle' : 'saved'
     } catch (failure: unknown) {
       notes.value = []
       selectedNote.value = undefined
@@ -123,6 +151,13 @@ export const useNotesStore = defineStore('notes', () => {
     await refreshNotes()
   }
 
+  async function reloadSelected(): Promise<void> {
+    const note = selectedNote.value
+    if (note === undefined) return
+    selectedNote.value = await getNote(note.id)
+    await refreshNotes()
+  }
+
   return {
     notes,
     selectedNote,
@@ -132,9 +167,12 @@ export const useNotesStore = defineStore('notes', () => {
     isLoading,
     hasSelectedNote,
     load,
+    loadByCategory,
+    loadByTags,
     updateDraft,
     flush,
     selectNote,
     create,
+    reloadSelected,
   }
 })

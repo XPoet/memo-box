@@ -2,9 +2,12 @@
 import { computed, useTemplateRef, watch } from 'vue'
 import MarkdownEditor from './MarkdownEditor.vue'
 import MissingAssetNotice from './MissingAssetNotice.vue'
+import NoteMetadata from './NoteMetadata.vue'
 import SaveStatus from './SaveStatus.vue'
+import type { CategoryNode } from '@/types/categories'
 import type { SaveStatus as SaveStatusType } from '@/stores/notes'
 import type { NoteDetail } from '@/types/notes'
+import type { TagSummary } from '@/types/tags'
 
 const props = defineProps<{
   note?: NoteDetail
@@ -12,12 +15,19 @@ const props = defineProps<{
   saveError?: string
   missingAssetCount: number
   saveImage: (bytes: Uint8Array) => Promise<string>
+  categories: CategoryNode[]
+  tags: TagSummary[]
+  selectedTagIds: string[]
 }>()
 
 const emit = defineEmits<{
   update: [change: Pick<NoteDetail, 'title' | 'content'>]
   retry: []
   pasteError: [message: string]
+  updateCategory: [categoryId: string | undefined]
+  updateTags: [tagIds: string[]]
+  createTag: [name: string]
+  trash: []
 }>()
 
 const titleInput = useTemplateRef<{ focus: () => void }>('titleInput')
@@ -58,8 +68,18 @@ function updateContent(content: string): void {
         <el-button v-if="saveStatus === 'failed'" text type="primary" @click="emit('retry')">
           重试
         </el-button>
+        <el-button text type="danger" @click="emit('trash')">删除</el-button>
       </div>
     </header>
+    <NoteMetadata
+      :categories="categories"
+      :category-id="note.categoryId"
+      :tags="tags"
+      :selected-tag-ids="selectedTagIds"
+      @create-tag="emit('createTag', $event)"
+      @update-category="emit('updateCategory', $event)"
+      @update-tags="emit('updateTags', $event)"
+    />
     <MissingAssetNotice :missing-asset-count="missingAssetCount" />
     <MarkdownEditor
       :key="note.id"
@@ -80,7 +100,7 @@ function updateContent(content: string): void {
 <style scoped lang="scss">
 .note-editor {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   min-block-size: 0;
   block-size: 100%;
 }

@@ -8,12 +8,19 @@ struct Migration {
     sql: &'static str,
 }
 
-const MIGRATIONS: [Migration; 1] = [Migration {
-    version: 1,
-    name: "V001__initial_schema",
-    sql: include_str!("../../migrations/V001__initial_schema.sql"),
-}];
-const LATEST_SCHEMA_VERSION: u32 = 1;
+const MIGRATIONS: [Migration; 2] = [
+    Migration {
+        version: 1,
+        name: "V001__initial_schema",
+        sql: include_str!("../../migrations/V001__initial_schema.sql"),
+    },
+    Migration {
+        version: 2,
+        name: "V002__asset_cleanup_queue",
+        sql: include_str!("../../migrations/V002__asset_cleanup_queue.sql"),
+    },
+];
+const LATEST_SCHEMA_VERSION: u32 = 2;
 
 pub fn apply_migrations(connection: &mut Connection) -> Result<u32, BootstrapError> {
     let applied_migrations = read_applied_migrations(connection)?;

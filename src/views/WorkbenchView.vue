@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { getNoteAssetHealth, savePastedImage, toAssetError } from '@/services/assets'
 import { useAutoSave } from '@/composables/useAutoSave'
@@ -9,13 +11,22 @@ import NoteList from '@/features/notes/NoteList.vue'
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue'
 import { useAppStore } from '@/stores/app'
 import { useNotesStore } from '@/stores/notes'
+import { useCategoriesStore } from '@/stores/categories'
+import { useTagsStore } from '@/stores/tags'
+import { createTag, listNoteTags, setNoteTags } from '@/services/tags'
+import { setNoteCategory } from '@/services/categories'
+import { trashNote } from '@/services/trash'
 import type { NoteDetail } from '@/types/notes'
 
 const appStore = useAppStore()
 const notesStore = useNotesStore()
+const categoriesStore = useCategoriesStore()
+const tagsStore = useTagsStore()
+const route = useRoute()
 const { snapshot } = storeToRefs(appStore)
 const { error, isLoading, notes, saveStatus, selectedNote } = storeToRefs(notesStore)
 const missingAssetCount = shallowRef(0)
+const selectedTagIds = shallowRef<string[]>([])
 const imageError = shallowRef<string>()
 let unlistenCloseRequested: (() => void) | undefined
 let allowingWindowClose = false
@@ -41,6 +52,40 @@ watch(
   () => selectedNote.value?.id,
   (noteId) => {
     void refreshAssetHealth(noteId)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [route.query.category, route.query.tags] as const,
+  async ([category, tags]) => {
+    const categoryId = typeof category === 'string' ? category : undefined
+    const tagIds = typeof tags === 'string' ? tags.split(',').filter(Boolean) : []
+    if (categoryId !== undefined) {
+      await notesStore.loadByCategory(categoryId)
+      return
+    }
+    if (tagIds.length > 0) {
+      await notesStore.loadByTags(tagIds)
+      return
+    }
+    await notesStore.load()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => selectedNote.value?.id,
+  async (noteId) => {
+    if (noteId === undefined) {
+      selectedTagIds.value = []
+      return
+    }
+    try {
+      selectedTagIds.value = (await listNoteTags(noteId)).map((tag) => tag.id)
+    } catch {
+      selectedTagIds.value = []
+    }
   },
   { immediate: true },
 )
@@ -78,6 +123,47 @@ async function handleCreate(): Promise<void> {
 
 async function handleLoad(): Promise<void> {
   await notesStore.load()
+  await Promise.all([categoriesStore.load(), tagsStore.load()])
+}
+
+async function handleTrash(): Promise<void> {
+  const note = selectedNote.value
+  if (note === undefined) return
+  await ElMessageBox.confirm('笔记将移入回收站，之后可恢复。是否继续？', '确认删除笔记', {
+    confirmButtonText: '移入回收站',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+  await autoSave.flush()
+  await trashNote(note.id)
+  ElMessage.success('笔记已移入回收站。')
+  await notesStore.load()
+}
+
+async function handleUpdateCategory(categoryId: string | undefined): Promise<void> {
+  const note = selectedNote.value
+  if (note === undefined) return
+  await autoSave.flush()
+  await setNoteCategory(note.id, categoryId)
+  await notesStore.reloadSelected()
+  await categoriesStore.load()
+}
+
+async function handleUpdateTags(tagIds: string[]): Promise<void> {
+  const note = selectedNote.value
+  if (note === undefined) return
+  await autoSave.flush()
+  await setNoteTags(note.id, tagIds)
+  selectedTagIds.value = tagIds
+  await tagsStore.load()
+}
+
+async function handleCreateTag(name: string): Promise<void> {
+  const tag = await createTag(name)
+  await tagsStore.load()
+  if (!selectedTagIds.value.includes(tag.id)) {
+    await handleUpdateTags([...selectedTagIds.value, tag.id])
+  }
 }
 
 async function handleSelect(id: string): Promise<void> {
@@ -139,10 +225,12 @@ onBeforeUnmount(() => {
   <WorkspaceLayout :schema-version="snapshot?.schemaVersion ?? 0">
     <template #navigation>
       <nav class="workbench-navigation">
-        <p class="navigation-item navigation-item--active">全部笔记</p>
+        <RouterLink class="navigation-item navigation-item--active" to="/">全部笔记</RouterLink>
         <p class="navigation-item">最近编辑</p>
         <p class="navigation-section-label">整理</p>
-        <p class="navigation-item navigation-item--muted">分类与标签将在后续任务提供</p>
+        <RouterLink class="navigation-item" to="/categories">分类管理</RouterLink>
+        <RouterLink class="navigation-item" to="/tags">标签管理</RouterLink>
+        <RouterLink class="navigation-item" to="/trash">回收站</RouterLink>
       </nav>
     </template>
 
@@ -165,7 +253,14 @@ onBeforeUnmount(() => {
         :save-error="error?.message"
         :missing-asset-count="missingAssetCount"
         :save-image="saveImage"
+        :categories="categoriesStore.categories"
+        :tags="tagsStore.tags"
+        :selected-tag-ids="selectedTagIds"
         @update="updateNote"
+        @update-category="handleUpdateCategory"
+        @update-tags="handleUpdateTags"
+        @create-tag="handleCreateTag"
+        @trash="handleTrash"
         @retry="autoSave.flush().catch(() => undefined)"
         @paste-error="imageError = $event"
       />

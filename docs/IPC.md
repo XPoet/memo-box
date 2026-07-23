@@ -1,8 +1,8 @@
 # MemoBox IPC 契约
 
-> 契约版本：V002
+> 契约版本：V003
 > 最后更新：2026-07-23
-> 生效任务：T02 本地数据目录、数据库迁移与启动闭环；T03 笔记工作台、纯文本编辑与自动保存闭环；T04 图片粘贴与本地资源生命周期
+> 生效任务：T02～T07 本地数据、笔记、图片、回收站、分类与标签闭环
 
 ## 1. 通用规则
 
@@ -22,7 +22,7 @@
 | --------------- | --------- | --------------------------------------------------- |
 | `status`        | `'ready'` | 初始化成功时固定为 `ready`                          |
 | `dataDirectory` | string    | 经系统路径 API 获取的应用数据目录，仅用于设置页展示 |
-| `schemaVersion` | number    | 最后成功执行的 Migration 版本；V001 为 `1`          |
+| `schemaVersion` | number    | 最后成功执行的 Migration 版本；当前 V002 为 `2`     |
 
 ### 失败响应：`BootstrapError`
 
@@ -111,6 +111,35 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 
 `ASSET_NOTE_NOT_FOUND` ｜ `INVALID_IMAGE_DATA` ｜ `UNSUPPORTED_IMAGE_FORMAT` ｜ `IMAGE_DIMENSIONS_INVALID` ｜ `ASSET_STORAGE_UNAVAILABLE` ｜ `ASSET_WRITE_FAILED` ｜ `ASSET_SAVE_FAILED`
 
-## 6. 关闭与保存行为
+## 6. 回收站接口
+
+### `trash_note`、`list_trashed_notes`、`restore_note`
+
+- `trash_note` 请求：`{ id: string }`，成功返回空值。删除前由前端 flush 当前草稿；普通删除只进入回收站。
+- `list_trashed_notes` 无参数，返回 `TrashedNoteSummary[]`：`id`、`title`、`contentPreview`、`deletedAt`、`trashedFromCategoryPath`。
+- `restore_note` 请求：`{ id: string }`，成功返回恢复后的 `NoteDetail`。原分类不存在时返回未分类，前端依据 `restoredToUncategorized` 显示提示。
+
+### `permanently_delete_note`、`empty_trash`
+
+- `permanently_delete_note` 请求：`{ id: string }`；`empty_trash` 无参数。两者均在前端二次确认后调用，成功返回 `TrashCleanupResult { deletedNoteCount, pendingFileCleanupCount }`。
+- 文件清理失败不会撤销已完成的永久删除；`pendingFileCleanupCount` 大于零时前端显示可安全重试的提示，不暴露路径。
+
+### 回收站错误码
+
+`TRASH_NOTE_NOT_FOUND` ｜ `TRASH_OPERATION_FAILED`
+
+## 7. 分类接口
+
+`list_categories` 返回嵌套 `CategoryNode[]`（含 `path`、`noteCount`、`children`）；`create_category` 请求 `{ name, parentId? }`；`rename_category` 请求 `{ id, name }`；`move_category` 请求 `{ id, parentId?, orderedIds }`；`get_category_delete_impact` 请求 `{ id }`；`delete_category` 请求 `{ id, mode: 'current' | 'branch' }`。分类筛选通过 `list_notes_by_category` 请求 `{ categoryId? }`，省略 `categoryId` 表示未分类。
+
+分类 Command 不接收层级、路径或 SQL。错误码：`CATEGORY_NOT_FOUND` ｜ `CATEGORY_VALIDATION_FAILED` ｜ `CATEGORY_DUPLICATE_NAME` ｜ `CATEGORY_MAX_DEPTH_EXCEEDED` ｜ `CATEGORY_CYCLE_DETECTED` ｜ `CATEGORY_OPERATION_FAILED`。
+
+## 8. 标签接口
+
+`list_tags` 返回 `TagSummary[]`；`create_tag` 请求 `{ name }`；`rename_tag` 请求 `{ id, name }`，当目标名称已存在时返回 `TagMergePreview`；`merge_tag` 请求 `{ sourceId, targetId }`；`delete_tag` 请求 `{ id }`；`set_note_tags` 请求 `{ noteId, tagIds }`；`list_notes_by_tags` 请求 `{ tagIds }`。服务端忽略重复标签 ID，仅执行 AND 筛选。
+
+标签错误码：`TAG_NOT_FOUND` ｜ `TAG_VALIDATION_FAILED` ｜ `TAG_DUPLICATE_NAME` ｜ `TAG_OPERATION_FAILED`。
+
+## 9. 关闭与保存行为
 
 前端自动保存防抖为 1 秒；连续输入期间不得每键调用 `save_note`。切换笔记、立即保存快捷键和窗口关闭请求前必须执行当前笔记的串行 flush。保存失败时保留内存草稿，尝试写入 `recovery_drafts`，并阻止窗口关闭、展示重试入口；不得静默丢弃内容。
