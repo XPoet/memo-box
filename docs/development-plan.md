@@ -5,7 +5,7 @@
 > 当前分支：`develop`
 > 当前基线提交：`139577b`
 > 计划范围：从文档基线到 MemoBox V1.0 正式发布
-> 计划状态：M2 已完成；下一任务为 T08 全局搜索与上下文返回
+> 计划状态：M2 已完成并完成 UI 人工审查整改；下一任务为 T08 全局搜索与上下文返回
 > 计划事实来源：`docs/PRD-V1.0.md`、`docs/design/memo-box.pen`、`docs/TECHNICAL-DESIGN.md`
 
 ## 1. 计划定位与使用方式
@@ -602,6 +602,22 @@ flowchart LR
 - **完成证据**：2026-07-23 已实现标签搜索、创建、重命名、合并确认、删除、编辑器快速创建／关联和复选标签筛选入口。后端统一 trim、全局不区分大小写唯一与幂等关联，使用 `GROUP BY ... HAVING COUNT(DISTINCT tag_id)` 实现 AND 筛选。Rust 回归覆盖 trim、重复关系和 AND 结果；前端 Store 回归覆盖加载与错误状态；`pnpm check` 与当前平台 Tauri debug DMG 构建通过。
 - **Git 提交说明**：`feat: 完成标签管理与多标签筛选`。
 
+### M2：人工审查 UI 回归整改
+
+- **状态**：已完成。
+- **目标**：修复工作台长笔记导致窗口整体滚动的问题，统一首页、分类管理、标签管理和回收站的 Pencil 布局，并保证三个管理页面均可通过路由返回首页。
+- **输入依据**：人工审查结论；Pencil 02、04、05、08；`docs/design/memo-box.pen` 的 1440×900 画板、变量和导航组件；项目规则。
+- **涉及文件**：`package.json`、`pnpm-lock.yaml`、`components.d.ts`、`src/layouts/AppSidebar.vue`、`src/layouts/ManagementLayout.vue`、`src/layouts/WorkspaceLayout.vue`、工作台／编辑器／笔记列表和三个管理视图、样式重置、侧栏路由回归测试及本文档。
+- **契约与数据影响**：无 IPC、DTO、数据库结构或 Migration 变更；仅调整既有 M2 UI 组合、路由入口和滚动容器。
+- **实现结果**：
+  1. 工作台固定为 Pencil 的 240／340／自适应三栏视口，`html`、`body`、应用壳和各列均限制溢出；CodeMirror 正文成为唯一的长内容滚动容器。
+  2. 新增共享 `AppSidebar` 与 `ManagementLayout`，四个页面复用品牌、新建笔记、全部笔记、标签、回收站、分类树和分类管理入口；管理页的“新建笔记”经 Hash 路由回到首页并创建笔记。
+  3. 分类、标签和回收站按 Pencil 的 100 px 标题区、20／36 px 内容留白、卡片／告警／空状态和操作区重组；基础控件继续使用 Element Plus，图标统一来自 `@element-plus/icons-vue`。
+  4. 补充 `tests/app-sidebar.spec.ts`，覆盖首页、三个管理页、分类筛选的路由入口和侧栏新建意图事件。
+- **验证证据**：2026-07-23 通过 `pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（7 个文件、11 个测试）、`pnpm build`、`cargo fmt --check --manifest-path src-tauri/Cargo.toml`、`cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`、`cargo test --manifest-path src-tauri/Cargo.toml`（9 个 Rust 测试）和 `pnpm exec tauri build --debug`。静态 Vite 页面在无 Tauri IPC 时按预期停在启动诊断页，页面有内容、无 Vite 错误覆盖层、无控制台错误；原生 debug 应用与 DMG 均已构建完成。
+- **遗留风险**：浏览器无法直接驱动 Tauri WebView 的真实 IPC 页面，原生窗口内的最终人工视觉验收继续保留在 T13；本次已以组件路由测试、前端构建和原生 debug bundle 收敛实现回归风险。
+- **Git 提交说明**：`fix: 修复 M2 工作台导航与设计还原`。
+
 ### T08：全局搜索与上下文返回闭环
 
 - **状态**：待执行。
@@ -884,7 +900,7 @@ flowchart LR
 
 | 状态 | 任务 |
 |---|---|
-| 已完成 | T00 基线审计与总开发路线；T01 桌面应用骨架与质量门；T02 本地数据启动闭环；T03 笔记工作台、纯文本编辑与自动保存闭环；T04 图片粘贴与本地资源生命周期；T05 回收站与资源清理；T06 五级分类管理；T07 标签管理与多标签筛选（M2） |
+| 已完成 | T00 基线审计与总开发路线；T01 桌面应用骨架与质量门；T02 本地数据启动闭环；T03 笔记工作台、纯文本编辑与自动保存闭环；T04 图片粘贴与本地资源生命周期；T05 回收站与资源清理；T06 五级分类管理；T07 标签管理与多标签筛选；M2 UI 人工审查整改 |
 | 进行中 | 无 |
 | 待执行 | T08～T14 |
 | 阻塞 | T15 正式发布 |
@@ -935,7 +951,7 @@ flowchart LR
 | R08 | Element Plus 与 Pencil 轻微皮肤差异诱发过度 CSS 覆盖 | 中 | T01、T11 | 官方组件能力优先；只为语义、可用性或不可忽略布局差异定制 |
 | R09 | macOS 当前环境无法证明 Windows 原生行为 | 高 | T14 | 必须在真实 Windows 环境构建和验收，不以静态前端代替 |
 | R10 | 正式签名、公证和发布依赖外部账号与证书 | 阻塞 | T15 | 候选包与正式发布分离，未经授权不触碰生产凭据 |
-| R11 | 当前平台自动化仅能访问 Tauri 原生窗口层，WebView 内容不暴露 AXPress，坐标点击也被系统丢弃 | 中 | T13、T14 | 使用 Rust Service 回归测试和运行中 Vite 页面的受控 Tauri 契约验证覆盖核心路径；macOS 真实关闭保存和剪贴板粘贴在 T13、Windows 行为在 T14 的候选验收复验 |
+| R11 | 当前平台自动化仅能访问 Tauri 原生窗口层，WebView 内容不暴露 AXPress，坐标点击也被系统丢弃 | 中 | T13、T14 | M2 UI 整改已用侧栏路由组件测试、前端构建和原生 debug bundle 验证；静态 Vite 因缺少 IPC 仅显示预期启动诊断。macOS 真实关闭保存和剪贴板粘贴在 T13、Windows 行为在 T14 的候选验收复验 |
 
 ## 10. PRD 与 UI 覆盖矩阵
 
@@ -1008,6 +1024,7 @@ flowchart LR
 | 2026-07-23 | A012 | 原生交互验收改为等待可驱动 Tauri WebView 的测试通道 | 已授予辅助功能后仍只能读取原生窗口层；WebView 不暴露 AXPress，坐标点击被系统丢弃，不能将无效输入伪装成验收 | T03、T04 |
 | 2026-07-23 | A013 | 修复 NotesService 数据库路径解析并完成 M1 | 人工验收发现列表读取和新建同时失败；根因是 Command 传入应用数据目录后 Service 将目录误作 SQLite 文件打开，现统一解析为 `database/memobox.db` 并增加目录输入回归覆盖 | T03、T04 |
 | 2026-07-23 | A014 | 将资源清理队列定为 V002，全文搜索迁移顺延为 V003 | T05 需要持久化文件删除失败的受控相对路径，才能满足永久删除后不回滚业务数据且可幂等重试；Migration 必须只增不改且连续递增 | T05、T08 |
+| 2026-07-23 | A015 | 在不启动 T08 的前提下完成 M2 UI 人工审查整改 | 审查发现长正文触发窗口整体滚动、管理页缺少统一首页路由及四页布局偏离 Pencil；该调整不改变业务契约，仅修复已完成里程碑的可用性与设计一致性 | T03、T05～T07、M2 |
 
 后续调整规则：
 

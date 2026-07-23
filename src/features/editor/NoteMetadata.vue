@@ -75,7 +75,7 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  padding: 0 var(--space-24) var(--space-12);
+  padding: var(--space-16) 0 var(--space-12);
 }
 
 .metadata-select {

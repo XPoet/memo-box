@@ -1,14 +1,29 @@
 <script setup lang="ts">
+import { Delete, RefreshLeft, WarningFilled } from '@element-plus/icons-vue'
 import { onMounted, shallowRef } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import ManagementLayout from '@/layouts/ManagementLayout.vue'
 import { emptyTrash, permanentlyDeleteNote, restoreNote } from '@/services/trash'
+import { useCategoriesStore } from '@/stores/categories'
 import { useTrashStore } from '@/stores/trash'
 
+const categoriesStore = useCategoriesStore()
 const trashStore = useTrashStore()
+const router = useRouter()
 const isSubmitting = shallowRef(false)
 
 function titleOf(title: string, preview: string): string {
   return title.trim() || preview || '无标题笔记'
+}
+
+function deletedAtLabel(value: string): string {
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
 }
 
 async function restore(id: string): Promise<void> {
@@ -25,11 +40,20 @@ async function restore(id: string): Promise<void> {
 }
 
 async function permanentlyDelete(id: string): Promise<void> {
-  await ElMessageBox.confirm('永久删除后无法恢复，是否继续？', '确认永久删除', {
-    confirmButtonText: '永久删除',
-    cancelButtonText: '取消',
-    type: 'warning',
-  })
+  const shouldDelete = await ElMessageBox.confirm(
+    '永久删除后无法恢复，是否继续？',
+    '确认永久删除',
+    {
+      confirmButtonText: '永久删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+  )
+    .then(() => true)
+    .catch(() => false)
+  if (!shouldDelete) {
+    return
+  }
   isSubmitting.value = true
   try {
     const result = await permanentlyDeleteNote(id)
@@ -45,11 +69,16 @@ async function permanentlyDelete(id: string): Promise<void> {
 }
 
 async function clearTrash(): Promise<void> {
-  await ElMessageBox.confirm(
+  const shouldClear = await ElMessageBox.confirm(
     '将永久删除回收站内的全部笔记，且无法恢复。是否继续？',
     '确认清空回收站',
     { confirmButtonText: '清空回收站', cancelButtonText: '取消', type: 'warning' },
   )
+    .then(() => true)
+    .catch(() => false)
+  if (!shouldClear) {
+    return
+  }
   isSubmitting.value = true
   try {
     const result = await emptyTrash()
@@ -64,119 +93,230 @@ async function clearTrash(): Promise<void> {
   }
 }
 
+function createNoteFromSidebar(): void {
+  void router.push({ name: 'workbench', query: { create: '1' } })
+}
+
 onMounted(() => {
-  void trashStore.load()
+  void Promise.all([trashStore.load(), categoriesStore.load()])
 })
 </script>
 
 <template>
-  <main class="management-view">
-    <header class="management-header">
-      <div>
-        <p class="management-eyebrow">整理</p>
-        <h1 class="management-title">回收站</h1>
-        <p class="management-copy">删除的笔记会一直保留在这里，直到你手动永久删除。</p>
-      </div>
+  <ManagementLayout
+    title="回收站"
+    description="删除的笔记会保留在这里，直到你手动永久删除。"
+    :categories="categoriesStore.categories"
+    :trash-count="trashStore.notes.length"
+    @create="createNoteFromSidebar"
+  >
+    <template #action>
       <el-button
         type="danger"
+        plain
         :disabled="trashStore.notes.length === 0 || isSubmitting"
         @click="clearTrash"
-        >清空回收站</el-button
       >
-    </header>
+        <el-icon><Delete /></el-icon>
+        清空回收站
+      </el-button>
+    </template>
+
     <p v-if="trashStore.error" class="management-error" role="alert">
       {{ trashStore.error.message }}
     </p>
-    <el-empty
-      v-else-if="!trashStore.isLoading && trashStore.notes.length === 0"
-      description="回收站为空"
-    />
-    <section v-else class="trash-list" aria-label="已删除笔记">
-      <article v-for="note in trashStore.notes" :key="note.id" class="trash-item">
-        <div>
-          <h2 class="trash-title">{{ titleOf(note.title, note.contentPreview) }}</h2>
-          <p class="trash-preview">{{ note.contentPreview || '没有正文内容' }}</p>
-          <p class="trash-meta">
-            删除于 {{ new Date(note.deletedAt).toLocaleString()
-            }}{{ note.trashedFromCategoryPath ? ` · 原分类：${note.trashedFromCategoryPath}` : '' }}
-          </p>
-        </div>
-        <div class="trash-actions">
-          <el-button :loading="isSubmitting" @click="restore(note.id)">恢复</el-button>
-          <el-button type="danger" plain :loading="isSubmitting" @click="permanentlyDelete(note.id)"
-            >永久删除</el-button
-          >
-        </div>
-      </article>
+    <section v-else-if="!trashStore.isLoading && trashStore.notes.length === 0" class="trash-empty">
+      <el-icon><Delete /></el-icon>
+      <h2>回收站为空</h2>
+      <p>删除的笔记会出现在这里，并且可在永久删除前恢复。</p>
+      <RouterLink class="trash-empty-link" to="/">返回全部笔记</RouterLink>
     </section>
-  </main>
+    <template v-else>
+      <p class="trash-notice" role="note">
+        <el-icon><WarningFilled /></el-icon>
+        永久删除后无法恢复；关联资源会在没有任何笔记引用时清理。
+      </p>
+      <section class="trash-list" aria-label="已删除笔记">
+        <article v-for="note in trashStore.notes" :key="note.id" class="trash-item">
+          <div class="trash-note-content">
+            <h2 class="trash-title">{{ titleOf(note.title, note.contentPreview) }}</h2>
+            <p class="trash-preview">{{ note.contentPreview || '没有正文内容' }}</p>
+            <p class="trash-meta">
+              删除于 {{ deletedAtLabel(note.deletedAt)
+              }}{{
+                note.trashedFromCategoryPath ? ` · 原分类：${note.trashedFromCategoryPath}` : ''
+              }}
+            </p>
+          </div>
+          <div class="trash-actions">
+            <el-button :loading="isSubmitting" @click="restore(note.id)">
+              <el-icon><RefreshLeft /></el-icon>
+              恢复
+            </el-button>
+            <el-button
+              type="danger"
+              plain
+              :loading="isSubmitting"
+              @click="permanentlyDelete(note.id)"
+            >
+              <el-icon><Delete /></el-icon>
+              永久删除
+            </el-button>
+          </div>
+        </article>
+      </section>
+      <p class="trash-count">回收站中共有 {{ trashStore.notes.length }} 篇笔记</p>
+    </template>
+  </ManagementLayout>
 </template>
 
 <style scoped lang="scss">
-.management-view {
-  min-block-size: 100vh;
-  padding: var(--space-32);
-  background: var(--color-canvas);
-}
-.management-header {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-24);
-  align-items: flex-start;
-}
-.management-eyebrow,
-.management-title,
-.management-copy,
 .management-error,
+.trash-empty h2,
+.trash-empty p,
+.trash-notice,
 .trash-title,
 .trash-preview,
-.trash-meta {
+.trash-meta,
+.trash-count {
   margin: 0;
 }
-.management-eyebrow {
-  color: var(--color-accent);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-.management-title {
-  margin-block-start: var(--space-4);
-  color: var(--color-text-primary);
-}
-.management-copy,
-.trash-preview,
-.trash-meta {
-  margin-block-start: var(--space-8);
-  color: var(--color-text-secondary);
-}
+
 .management-error {
-  margin-block: var(--space-16);
   color: var(--color-danger);
 }
-.trash-list {
+
+.trash-empty {
   display: grid;
+  min-block-size: 420px;
+  place-content: center;
+  justify-items: center;
   gap: var(--space-12);
-  margin-block-start: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-10);
+  background: var(--color-surface);
+  text-align: center;
 }
-.trash-item {
+
+.trash-empty > .el-icon {
+  display: grid;
+  inline-size: 44px;
+  block-size: 44px;
+  place-items: center;
+  border-radius: var(--radius-10);
+  background: var(--color-sidebar);
+  color: var(--color-text-secondary);
+  font-size: 1.3125rem;
+}
+
+.trash-empty h2 {
+  color: var(--color-text-primary);
+  font-size: 0.9375rem;
+}
+
+.trash-empty p {
+  max-inline-size: 310px;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+
+.trash-empty-link {
+  color: var(--color-accent-active);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.trash-notice {
   display: flex;
-  justify-content: space-between;
-  gap: var(--space-24);
-  padding: var(--space-16);
+  align-items: center;
+  min-block-size: 42px;
+  gap: var(--space-8);
+  padding: 0 var(--space-12);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 26%, var(--color-border));
+  border-radius: var(--radius-8);
+  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface));
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.trash-notice .el-icon {
+  color: var(--color-danger);
+}
+
+.trash-list {
+  margin-block-start: 14px;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-10);
   background: var(--color-surface);
 }
-.trash-title {
-  color: var(--color-text-primary);
-  font-size: 1rem;
-}
-.trash-meta {
-  font-size: var(--font-size-sm);
-}
-.trash-actions {
+
+.trash-item {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  justify-content: space-between;
+  min-block-size: 112px;
+  gap: var(--space-24);
+  padding: var(--space-16) 18px;
+  border-block-end: 1px solid var(--color-divider);
+}
+
+.trash-item:last-child {
+  border-block-end: 0;
+}
+
+.trash-note-content {
+  min-inline-size: 0;
+}
+
+.trash-title {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-preview,
+.trash-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-preview {
+  margin-block-start: 7px;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.trash-meta {
+  margin-block-start: 8px;
+  color: var(--color-text-muted);
+  font-family: 'Geist Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.625rem;
+}
+
+.trash-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
   gap: var(--space-8);
+}
+
+.trash-count {
+  margin-block-start: var(--space-12);
+  color: var(--color-text-muted);
+  font-size: 0.6875rem;
+}
+
+@media (max-width: 760px) {
+  .trash-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 </style>

@@ -5,10 +5,11 @@
 html,
 body,
 #app {
-  min-block-size: 100%;
+  block-size: 100%;
   margin: 0;
 }
 
 body {
   min-inline-size: 320px;
+  overflow: hidden;
 }

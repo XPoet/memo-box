@@ -12,7 +12,7 @@ defineProps<{
 
 <style scoped lang="scss">
 .missing-asset-notice {
-  margin: 0 var(--space-24);
+  margin: 0;
   padding: var(--space-12);
   border: 1px solid color-mix(in srgb, var(--color-danger) 36%, var(--color-border));
   border-radius: var(--radius-8);

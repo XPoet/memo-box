@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { getNoteAssetHealth, savePastedImage, toAssetError } from '@/services/assets'
@@ -9,7 +9,6 @@ import { useAutoSave } from '@/composables/useAutoSave'
 import NoteEditor from '@/features/editor/NoteEditor.vue'
 import NoteList from '@/features/notes/NoteList.vue'
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue'
-import { useAppStore } from '@/stores/app'
 import { useNotesStore } from '@/stores/notes'
 import { useCategoriesStore } from '@/stores/categories'
 import { useTagsStore } from '@/stores/tags'
@@ -18,12 +17,11 @@ import { setNoteCategory } from '@/services/categories'
 import { trashNote } from '@/services/trash'
 import type { NoteDetail } from '@/types/notes'
 
-const appStore = useAppStore()
 const notesStore = useNotesStore()
 const categoriesStore = useCategoriesStore()
 const tagsStore = useTagsStore()
 const route = useRoute()
-const { snapshot } = storeToRefs(appStore)
+const router = useRouter()
 const { error, isLoading, notes, saveStatus, selectedNote } = storeToRefs(notesStore)
 const missingAssetCount = shallowRef(0)
 const selectedTagIds = shallowRef<string[]>([])
@@ -75,6 +73,19 @@ watch(
 )
 
 watch(
+  () => route.query.create,
+  async (create) => {
+    if (create !== '1') {
+      return
+    }
+    if (await handleCreate()) {
+      await router.replace({ name: 'workbench' })
+    }
+  },
+  { immediate: true },
+)
+
+watch(
   () => selectedNote.value?.id,
   async (noteId) => {
     if (noteId === undefined) {
@@ -112,12 +123,13 @@ async function saveImage(bytes: Uint8Array): Promise<string> {
   }
 }
 
-async function handleCreate(): Promise<void> {
+async function handleCreate(): Promise<boolean> {
   try {
     await autoSave.flush()
     await notesStore.create()
+    return true
   } catch {
-    return
+    return false
   }
 }
 
@@ -128,12 +140,23 @@ async function handleLoad(): Promise<void> {
 
 async function handleTrash(): Promise<void> {
   const note = selectedNote.value
-  if (note === undefined) return
-  await ElMessageBox.confirm('笔记将移入回收站，之后可恢复。是否继续？', '确认删除笔记', {
-    confirmButtonText: '移入回收站',
-    cancelButtonText: '取消',
-    type: 'warning',
-  })
+  if (note === undefined) {
+    return
+  }
+  const shouldTrash = await ElMessageBox.confirm(
+    '笔记将移入回收站，之后可恢复。是否继续？',
+    '确认删除笔记',
+    {
+      confirmButtonText: '移入回收站',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+  )
+    .then(() => true)
+    .catch(() => false)
+  if (!shouldTrash) {
+    return
+  }
   await autoSave.flush()
   await trashNote(note.id)
   ElMessage.success('笔记已移入回收站。')
@@ -222,18 +245,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <WorkspaceLayout :schema-version="snapshot?.schemaVersion ?? 0">
-    <template #navigation>
-      <nav class="workbench-navigation">
-        <RouterLink class="navigation-item navigation-item--active" to="/">全部笔记</RouterLink>
-        <p class="navigation-item">最近编辑</p>
-        <p class="navigation-section-label">整理</p>
-        <RouterLink class="navigation-item" to="/categories">分类管理</RouterLink>
-        <RouterLink class="navigation-item" to="/tags">标签管理</RouterLink>
-        <RouterLink class="navigation-item" to="/trash">回收站</RouterLink>
-      </nav>
-    </template>
-
+  <WorkspaceLayout
+    :categories="categoriesStore.categories"
+    :tag-count="tagsStore.tags.length"
+    @create="handleCreate"
+  >
     <template #list>
       <NoteList
         :notes="notes"
@@ -270,46 +286,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-.workbench-navigation {
-  display: grid;
-  gap: var(--space-4);
-  margin-block-start: var(--space-24);
-}
-
-.navigation-item,
-.navigation-section-label {
-  margin: 0;
-}
-
-.navigation-item {
-  padding: var(--space-8) var(--space-12);
-  border-radius: var(--radius-8);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.navigation-item--active {
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-  font-weight: 600;
-}
-
-.navigation-item--muted {
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-
-.navigation-section-label {
-  margin-block-start: var(--space-16);
-  padding-inline: var(--space-12);
-  color: var(--color-text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .image-error {
   margin: 0;
   padding: var(--space-8) var(--space-16);

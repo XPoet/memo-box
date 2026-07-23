@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
 
 .markdown-editor :deep(.cm-scroller) {
   min-block-size: 100%;
-  padding: var(--space-24);
+  padding: var(--space-16) 0 var(--space-24);
   font-family: inherit;
 }
 

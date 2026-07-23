@@ -40,13 +40,15 @@ const updatedLabel = computed(() =>
 <style scoped lang="scss">
 .note-list-item {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-8);
   inline-size: 100%;
-  padding: var(--space-12) var(--space-16);
+  min-block-size: 88px;
+  padding: 14px;
   overflow: hidden;
-  border: 0;
-  border-block-end: 1px solid var(--color-border);
-  background: transparent;
+  border: 0 solid var(--color-divider);
+  border-block-end-width: 1px;
+  border-inline-start-width: 3px;
+  background: var(--color-surface);
   color: inherit;
   cursor: pointer;
   text-align: start;
@@ -54,7 +56,11 @@ const updatedLabel = computed(() =>
 
 .note-list-item:hover,
 .note-list-item--selected {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  background: var(--color-accent-soft);
+}
+
+.note-list-item--selected {
+  border-inline-start-color: var(--color-accent);
 }
 
 .note-list-item-title,
@@ -66,12 +72,18 @@ const updatedLabel = computed(() =>
 
 .note-list-item-title {
   color: var(--color-text-primary);
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .note-list-item-preview,
 .note-list-item-time {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: 0.75rem;
+}
+
+.note-list-item-time {
+  color: var(--color-text-muted);
+  font-size: 0.625rem;
 }
 </style>

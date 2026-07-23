@@ -1,0 +1,94 @@
+import { defineComponent, h } from 'vue'
+import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
+import { describe, expect, it } from 'vitest'
+import AppSidebar from '@/layouts/AppSidebar.vue'
+
+const EmptyView = defineComponent({
+  setup() {
+    return () => h('div')
+  },
+})
+
+const ButtonStub = defineComponent({
+  emits: ['click'],
+  setup(_props, { attrs, emit, slots }) {
+    return () => h('button', { ...attrs, onClick: () => emit('click') }, slots.default?.())
+  },
+})
+
+const IconStub = defineComponent({
+  setup(_props, { slots }) {
+    return () => h('i', slots.default?.())
+  },
+})
+
+function createTestRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/', name: 'workbench', component: EmptyView },
+      { path: '/categories', name: 'categories', component: EmptyView },
+      { path: '/tags', name: 'tags', component: EmptyView },
+      { path: '/trash', name: 'trash', component: EmptyView },
+    ],
+  })
+}
+
+describe('AppSidebar', () => {
+  it('为所有管理页面和分类筛选提供路由入口', async () => {
+    const router = createTestRouter()
+    await router.push('/')
+    await router.isReady()
+    const wrapper = mount(AppSidebar, {
+      props: {
+        categories: [
+          {
+            id: 'work',
+            name: '工作',
+            level: 1,
+            sortOrder: 0,
+            path: '工作',
+            noteCount: 2,
+            children: [],
+          },
+        ],
+      },
+      global: {
+        plugins: [router],
+        stubs: {
+          ElButton: ButtonStub,
+          ElIcon: IconStub,
+        },
+      },
+    })
+
+    const hrefs = wrapper.findAll('a').map((link) => link.attributes('href'))
+
+    expect(hrefs).toContain(router.resolve({ name: 'workbench' }).href)
+    expect(hrefs).toContain(router.resolve({ name: 'categories' }).href)
+    expect(hrefs).toContain(router.resolve({ name: 'tags' }).href)
+    expect(hrefs).toContain(router.resolve({ name: 'trash' }).href)
+    expect(hrefs).toContain(router.resolve({ name: 'workbench', query: { category: 'work' } }).href)
+  })
+
+  it('将新建笔记意图交给路由视图处理', async () => {
+    const router = createTestRouter()
+    await router.push('/')
+    await router.isReady()
+    const wrapper = mount(AppSidebar, {
+      props: { categories: [] },
+      global: {
+        plugins: [router],
+        stubs: {
+          ElButton: ButtonStub,
+          ElIcon: IconStub,
+        },
+      },
+    })
+
+    await wrapper.get('.sidebar-create-button').trigger('click')
+
+    expect(wrapper.emitted('create')).toHaveLength(1)
+  })
+})

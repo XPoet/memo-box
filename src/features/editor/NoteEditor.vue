@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Delete, Folder } from '@element-plus/icons-vue'
 import { computed, useTemplateRef, watch } from 'vue'
 import MarkdownEditor from './MarkdownEditor.vue'
 import MissingAssetNotice from './MissingAssetNotice.vue'
@@ -55,6 +56,21 @@ function updateContent(content: string): void {
 <template>
   <section v-if="note !== undefined" class="note-editor">
     <header class="note-editor-header">
+      <p class="note-editor-location">
+        <el-icon><Folder /></el-icon>
+        Markdown 笔记
+      </p>
+      <div class="note-editor-status">
+        <SaveStatus :status="saveStatus" :message="saveError" />
+        <el-button v-if="saveStatus === 'failed'" text type="primary" @click="emit('retry')">
+          重试
+        </el-button>
+        <el-button text type="danger" circle aria-label="移入回收站" @click="emit('trash')">
+          <el-icon><Delete /></el-icon>
+        </el-button>
+      </div>
+    </header>
+    <div class="note-editor-content">
       <el-input
         ref="titleInput"
         class="note-title-input"
@@ -63,32 +79,25 @@ function updateContent(content: string): void {
         aria-label="笔记标题"
         @update:model-value="updateTitle"
       />
-      <div class="note-editor-status">
-        <SaveStatus :status="saveStatus" :message="saveError" />
-        <el-button v-if="saveStatus === 'failed'" text type="primary" @click="emit('retry')">
-          重试
-        </el-button>
-        <el-button text type="danger" @click="emit('trash')">删除</el-button>
-      </div>
-    </header>
-    <NoteMetadata
-      :categories="categories"
-      :category-id="note.categoryId"
-      :tags="tags"
-      :selected-tag-ids="selectedTagIds"
-      @create-tag="emit('createTag', $event)"
-      @update-category="emit('updateCategory', $event)"
-      @update-tags="emit('updateTags', $event)"
-    />
-    <MissingAssetNotice :missing-asset-count="missingAssetCount" />
-    <MarkdownEditor
-      :key="note.id"
-      class="note-editor-body"
-      :model-value="note.content"
-      :save-image="saveImage"
-      @update:model-value="updateContent"
-      @paste-error="emit('pasteError', $event)"
-    />
+      <NoteMetadata
+        :categories="categories"
+        :category-id="note.categoryId"
+        :tags="tags"
+        :selected-tag-ids="selectedTagIds"
+        @create-tag="emit('createTag', $event)"
+        @update-category="emit('updateCategory', $event)"
+        @update-tags="emit('updateTags', $event)"
+      />
+      <MissingAssetNotice :missing-asset-count="missingAssetCount" />
+      <MarkdownEditor
+        :key="note.id"
+        class="note-editor-body"
+        :model-value="note.content"
+        :save-image="saveImage"
+        @update:model-value="updateContent"
+        @paste-error="emit('pasteError', $event)"
+      />
+    </div>
   </section>
   <section v-else class="editor-empty-state">
     <p class="editor-empty-eyebrow">MemoBox</p>
@@ -100,7 +109,7 @@ function updateContent(content: string): void {
 <style scoped lang="scss">
 .note-editor {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: 56px minmax(0, 1fr);
   min-block-size: 0;
   block-size: 100%;
 }
@@ -108,12 +117,29 @@ function updateContent(content: string): void {
 .note-editor-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-16);
-  padding: var(--space-20) var(--space-24) var(--space-12);
+  padding: 0 var(--space-24);
+  border-block-end: 1px solid var(--color-divider);
+  background: var(--color-surface);
+}
+
+.note-editor-location {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.note-editor-location .el-icon {
+  color: var(--color-accent);
+  font-size: 0.875rem;
 }
 
 .note-title-input {
-  flex: 1;
+  inline-size: 100%;
 }
 
 .note-title-input :deep(.el-input__wrapper) {
@@ -124,8 +150,9 @@ function updateContent(content: string): void {
 .note-title-input :deep(.el-input__inner) {
   block-size: auto;
   color: var(--color-text-primary);
-  font-size: 1.375rem;
+  font-size: 1.75rem;
   font-weight: 650;
+  letter-spacing: -0.025em;
 }
 
 .note-editor-status {
@@ -137,6 +164,14 @@ function updateContent(content: string): void {
 
 .note-editor-body {
   min-block-size: 0;
+}
+
+.note-editor-content {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  min-block-size: 0;
+  padding: 30px 44px 0;
+  overflow: hidden;
 }
 
 .editor-empty-state {
