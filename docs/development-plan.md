@@ -5,7 +5,7 @@
 > 当前分支：`develop`
 > 当前基线提交：`139577b`
 > 计划范围：从文档基线到 MemoBox V1.0 正式发布
-> 计划状态：M2 已完成并完成 UI 人工审查整改；下一任务为 T08 全局搜索与上下文返回
+> 计划状态：M2 已完成第二轮 UI 审查修复；下一任务为 T08 全局搜索与上下文返回
 > 计划事实来源：`docs/PRD-V1.0.md`、`docs/design/memo-box.pen`、`docs/TECHNICAL-DESIGN.md`
 
 ## 1. 计划定位与使用方式
@@ -618,6 +618,22 @@ flowchart LR
 - **遗留风险**：浏览器无法直接驱动 Tauri WebView 的真实 IPC 页面，原生窗口内的最终人工视觉验收继续保留在 T13；本次已以组件路由测试、前端构建和原生 debug bundle 收敛实现回归风险。
 - **Git 提交说明**：`fix: 修复 M2 工作台导航与设计还原`。
 
+### M2：第二轮人工审查弹窗与表单修复
+
+- **状态**：已完成。
+- **目标**：修复笔记删除确认弹窗不可见，以及新建分类／标签的输入弹窗样式缺失问题。
+- **输入依据**：第二轮人工审查结论；Pencil 组件“确认弹窗”、主按钮、次按钮和危险按钮；项目规则。
+- **涉及文件**：`src/styles/_element-plus.scss`、入口样式、工作台／分类／标签／回收站现有调用点、对应回归测试及本文档。
+- **契约与数据影响**：无 IPC、DTO、数据库结构或 Migration 变更；仅补齐 Element Plus 编程式服务的按需样式和覆盖。
+- **执行步骤**：
+  1. 确认 `ElMessageBox`、`ElMessage` 的样式是否被构建期组件自动解析遗漏。
+  2. 在集中 Element Plus 样式入口按需导入服务组件 CSS，并以公开类和变量对齐 Pencil 的遮罩、面板、输入框和按钮。
+  3. 对笔记删除、新建分类和新建标签建立服务调用与样式资源回归测试。
+  4. 执行前端与 Rust 质量门、当前平台 debug build、差异与敏感信息审查后回填证据。
+- **完成证据**：2026-07-24 已确认 Vite 的组件自动解析不会为 `ElMessageBox`、`ElMessage` 这类编程式服务注入 CSS，故在应用入口显式按需导入 `message-box` 与 `message` 样式，并在 `_element-plus.scss` 集中覆盖 Pencil 所需的遮罩、对话框、输入框、按钮间距和提示消息变量。新增 1 项样式入口回归测试；`pnpm format:check`、`pnpm lint`、`pnpm typecheck`、`pnpm test`（8 个文件、12 个测试）、`pnpm build`、`cargo fmt --check --manifest-path src-tauri/Cargo.toml`、`cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`、`cargo test --manifest-path src-tauri/Cargo.toml`（9 个 Rust 测试）和 `pnpm exec tauri build --debug` 均通过，已重新生成当前平台 debug 应用与 DMG。
+- **遗留风险**：无新增功能风险；构建保留现有单 JavaScript 包大于 500 KiB 的非阻断提示，性能拆包仍按 T12 统一评估，避免提前改变路由加载策略。
+- **Git 提交说明**：`fix: 修复 M2 确认弹窗与新建表单样式`。
+
 ### T08：全局搜索与上下文返回闭环
 
 - **状态**：待执行。
@@ -1025,6 +1041,7 @@ flowchart LR
 | 2026-07-23 | A013 | 修复 NotesService 数据库路径解析并完成 M1 | 人工验收发现列表读取和新建同时失败；根因是 Command 传入应用数据目录后 Service 将目录误作 SQLite 文件打开，现统一解析为 `database/memobox.db` 并增加目录输入回归覆盖 | T03、T04 |
 | 2026-07-23 | A014 | 将资源清理队列定为 V002，全文搜索迁移顺延为 V003 | T05 需要持久化文件删除失败的受控相对路径，才能满足永久删除后不回滚业务数据且可幂等重试；Migration 必须只增不改且连续递增 | T05、T08 |
 | 2026-07-23 | A015 | 在不启动 T08 的前提下完成 M2 UI 人工审查整改 | 审查发现长正文触发窗口整体滚动、管理页缺少统一首页路由及四页布局偏离 Pencil；该调整不改变业务契约，仅修复已完成里程碑的可用性与设计一致性 | T03、T05～T07、M2 |
+| 2026-07-24 | A016 | 在不启动 T08 的前提下补齐 Element Plus 编程式服务样式入口 | `ElMessageBox`、`ElMessage` 不会被模板组件自动解析覆盖，导致删除确认弹窗不可见、新建分类／标签输入弹窗无样式；改为入口显式按需导入并集中覆写 | M2 UI 整改 |
 
 后续调整规则：
 
