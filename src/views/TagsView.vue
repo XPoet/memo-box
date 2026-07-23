@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { Delete, EditPen, Plus, Search, View } from '@element-plus/icons-vue'
+import { Delete, Download, EditPen, Plus, Search, View } from '@element-plus/icons-vue'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ManagementLayout from '@/layouts/ManagementLayout.vue'
+import ExportDialog from '@/features/export/ExportDialog.vue'
 import { createTag, deleteTag, mergeTag, renameTag } from '@/services/tags'
 import { useCategoriesStore } from '@/stores/categories'
 import { useTagsStore } from '@/stores/tags'
 import type { TagSummary } from '@/types/tags'
+import type { ExportScopeOption } from '@/types/export'
 
 const categoriesStore = useCategoriesStore()
 const tagsStore = useTagsStore()
@@ -15,6 +17,21 @@ const router = useRouter()
 const query = shallowRef('')
 const isSubmitting = shallowRef(false)
 const selectedTagIds = shallowRef<string[]>([])
+const exportTag = shallowRef<TagSummary>()
+const isExportDialogVisible = shallowRef(false)
+const exportScopeOptions = computed<ExportScopeOption[]>(() => {
+  const tag = exportTag.value
+  if (tag === undefined) {
+    return []
+  }
+  return [
+    {
+      scope: { kind: 'tag', id: tag.id },
+      title: `标签「${tag.name}」`,
+      description: '每条笔记单独导出，不按原分类重复创建文件。',
+    },
+  ]
+})
 const visibleTags = computed(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
   if (keyword === '') {
@@ -106,6 +123,11 @@ function viewNotes(tag: TagSummary): void {
   void router.push({ name: 'workbench', query: { tags: tag.id } })
 }
 
+function openExport(tag: TagSummary): void {
+  exportTag.value = tag
+  isExportDialogVisible.value = true
+}
+
 function viewSelectedNotes(): void {
   if (selectedTagIds.value.length > 0) {
     void router.push({ name: 'workbench', query: { tags: selectedTagIds.value.join(',') } })
@@ -192,6 +214,10 @@ onMounted(() => {
                   <el-icon><View /></el-icon>
                   查看
                 </el-button>
+                <el-button text size="small" @click="openExport(row)">
+                  <el-icon><Download /></el-icon>
+                  导出
+                </el-button>
                 <el-button text size="small" :disabled="isSubmitting" @click="rename(row)">
                   <el-icon><EditPen /></el-icon>
                   重命名
@@ -213,6 +239,7 @@ onMounted(() => {
       </el-checkbox-group>
     </template>
   </ManagementLayout>
+  <ExportDialog v-model="isExportDialogVisible" :scope-options="exportScopeOptions" />
 </template>
 
 <style scoped lang="scss">

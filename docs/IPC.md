@@ -1,13 +1,13 @@
 # MemoBox IPC 契约
 
-> 契约版本：V004
+> 契约版本：V005
 > 最后更新：2026-07-24
-> 生效任务：T02～T08 本地数据、笔记、图片、回收站、分类、标签与全局搜索闭环
+> 生效任务：T02～T09 本地数据、笔记、图片、回收站、分类、标签、全局搜索与 Markdown 导出闭环
 
 ## 1. 通用规则
 
 - Vue 组件只能调用 TypeScript Service；Service 统一封装 Tauri `invoke`。
-- Command 仅负责参数反序列化、线程调度和 Service 调用；不得接收前端提供的数据库路径或任意文件路径。
+- Command 仅负责参数反序列化、线程调度和 Service 调用；不得接收前端提供的数据库路径或任意文件路径。`export_notes.targetDirectory` 是唯一例外：前端 Service 只传递系统目录选择器的结果，Rust 仍不信任该值，必须将其规范化并验证为已存在的本地目录。
 - 失败以稳定错误码返回，前端仅展示安全诊断信息，不显示 SQL、系统绝对路径或笔记内容。
 
 ## 2. `bootstrap_app`
@@ -171,3 +171,50 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 ### 搜索错误码
 
 `SEARCH_VALIDATION_FAILED` ｜ `SEARCH_QUERY_FAILED` ｜ `SEARCH_INDEX_REBUILD_FAILED`
+
+## 11. Markdown 导出接口
+
+### 目录选择与安全边界
+
+前端通过 Tauri `dialog` 插件选择已存在的目标目录；取消选择时不得发起导出。前端 Service 仅将该选择结果传入 `export_notes`，Rust 仍会验证路径为已规范化的本地目录、拒绝文件和相对路径，并且绝不将目标目录的绝对路径返回给前端。
+
+每次导出会在目标目录中创建一个不覆盖已有文件的 `MemoBox 导出-YYYYMMDD-HHmmss` 子目录。结果只返回安全的目录显示名；前端只能使用本次任务的 `jobId` 调用 `open_export_directory`，由 Rust 从受控任务记录中打开目录，不能自行传入路径。
+
+### `export_notes`
+
+请求：`{ jobId, scope, targetDirectory, onProgress }`。
+
+| 字段              | 类型                                                               | 说明                                                            |
+| ----------------- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `jobId`           | string                                                             | 前端生成的 UUID；一次导出任务的唯一标识                         |
+| `scope.kind`      | `'note'` ｜ `'category'` ｜ `'categoryWithDescendants'` ｜ `'tag'` | 当前笔记、仅当前分类、分类含全部子分类或单个标签                |
+| `scope.id`        | string                                                             | 笔记、分类或标签 UUID；Rust 重新校验实体存在性与可导出状态      |
+| `targetDirectory` | string                                                             | 仅由目录选择器提供；Rust 规范化并验证为本地目录，响应中绝不回传 |
+| `onProgress`      | Tauri `Channel<ExportProgress>`                                    | 每个已处理笔记发送一次，不携带绝对路径或正文                    |
+
+`ExportProgress` 包含 `total`、`processed`、`succeeded`、`failed`、`currentTitle?`。进度以创建任务时的数据库快照为准；回收站笔记永不参与导出。同一笔记和同一资源在单次任务中至多处理一次。
+
+成功响应：`ExportResult`。
+
+| 字段             | 类型            | 说明                                      |
+| ---------------- | --------------- | ----------------------------------------- |
+| `jobId`          | string          | 可用于取消或受控打开本次导出目录          |
+| `directoryLabel` | string          | 已创建导出目录的显示名，不含绝对路径      |
+| `exportedCount`  | number          | 成功写入的 Markdown 数量                  |
+| `failedCount`    | number          | 未写入的笔记数量                          |
+| `cancelled`      | boolean         | 用户请求取消后为 `true`；此前成功内容保留 |
+| `issues`         | `ExportIssue[]` | 缺失资源或单篇导出失败的安全摘要          |
+
+`ExportIssue` 包含 `noteId?`、`title`、`code`、`message`，不包含系统错误文本、源文件路径或笔记正文。单篇因路径或写入失败时记为失败并继续下一篇；资源缺失仅记录问题，Markdown 仍按导出后的相对路径写入。
+
+### `cancel_export`
+
+请求：`{ jobId }`。仅标记正在运行的受控任务取消；服务会在下一篇笔记开始前停止后续写入，已成功内容不回滚。任务不存在、已完成或 UUID 无效时返回稳定校验错误。
+
+### `open_export_directory`
+
+请求：`{ jobId }`。仅允许打开本进程已成功登记的导出目录，服务端调用受控 `opener` 插件；不接收前端路径。成功返回空值。
+
+### 导出错误码
+
+`EXPORT_VALIDATION_FAILED` ｜ `EXPORT_SCOPE_NOT_FOUND` ｜ `EXPORT_TARGET_UNAVAILABLE` ｜ `EXPORT_SNAPSHOT_FAILED` ｜ `EXPORT_WRITE_FAILED` ｜ `EXPORT_PROGRESS_UNAVAILABLE` ｜ `EXPORT_TASK_NOT_FOUND` ｜ `EXPORT_OPEN_FAILED`

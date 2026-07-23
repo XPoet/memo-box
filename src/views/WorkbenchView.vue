@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { getNoteAssetHealth, savePastedImage, toAssetError } from '@/services/assets'
 import { useAutoSave } from '@/composables/useAutoSave'
 import NoteEditor from '@/features/editor/NoteEditor.vue'
+import ExportDialog from '@/features/export/ExportDialog.vue'
 import NoteList from '@/features/notes/NoteList.vue'
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue'
 import { useNotesStore } from '@/stores/notes'
@@ -16,6 +17,7 @@ import { createTag, listNoteTags, setNoteTags } from '@/services/tags'
 import { setNoteCategory } from '@/services/categories'
 import { trashNote } from '@/services/trash'
 import type { NoteDetail } from '@/types/notes'
+import type { ExportScopeOption } from '@/types/export'
 
 const notesStore = useNotesStore()
 const categoriesStore = useCategoriesStore()
@@ -26,6 +28,20 @@ const { error, isLoading, notes, saveStatus, selectedNote } = storeToRefs(notesS
 const missingAssetCount = shallowRef(0)
 const selectedTagIds = shallowRef<string[]>([])
 const imageError = shallowRef<string>()
+const isExportDialogVisible = shallowRef(false)
+const exportScopeOptions = computed<ExportScopeOption[]>(() => {
+  const note = selectedNote.value
+  if (note === undefined) {
+    return []
+  }
+  return [
+    {
+      scope: { kind: 'note', id: note.id },
+      title: '当前笔记',
+      description: '导出当前笔记及其关联的原格式图片。',
+    },
+  ]
+})
 let unlistenCloseRequested: (() => void) | undefined
 let allowingWindowClose = false
 let isHandlingClose = false
@@ -164,6 +180,17 @@ async function handleTrash(): Promise<void> {
   await notesStore.load()
 }
 
+async function handleExport(): Promise<void> {
+  try {
+    await autoSave.flush()
+    if (selectedNote.value !== undefined) {
+      isExportDialogVisible.value = true
+    }
+  } catch {
+    ElMessage.error('当前笔记保存失败，暂不能导出。')
+  }
+}
+
 async function handleUpdateCategory(categoryId: string | undefined): Promise<void> {
   const note = selectedNote.value
   if (note === undefined) return
@@ -277,6 +304,7 @@ onBeforeUnmount(() => {
         @update-category="handleUpdateCategory"
         @update-tags="handleUpdateTags"
         @create-tag="handleCreateTag"
+        @export="handleExport"
         @trash="handleTrash"
         @retry="autoSave.flush().catch(() => undefined)"
         @paste-error="imageError = $event"
@@ -284,6 +312,7 @@ onBeforeUnmount(() => {
       <p v-if="imageError" class="image-error" role="alert">{{ imageError }}</p>
     </template>
   </WorkspaceLayout>
+  <ExportDialog v-model="isExportDialogVisible" :scope-options="exportScopeOptions" />
 </template>
 
 <style scoped lang="scss">

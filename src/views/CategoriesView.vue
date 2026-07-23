@@ -1,9 +1,18 @@
 <script setup lang="ts">
-import { Delete, EditPen, Folder, Plus, View, WarningFilled } from '@element-plus/icons-vue'
-import { onMounted, shallowRef } from 'vue'
+import {
+  Delete,
+  Download,
+  EditPen,
+  Folder,
+  Plus,
+  View,
+  WarningFilled,
+} from '@element-plus/icons-vue'
+import { computed, onMounted, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import ManagementLayout from '@/layouts/ManagementLayout.vue'
+import ExportDialog from '@/features/export/ExportDialog.vue'
 import {
   createCategory,
   deleteCategory,
@@ -13,11 +22,31 @@ import {
 } from '@/services/categories'
 import { useCategoriesStore } from '@/stores/categories'
 import type { CategoryDeleteMode, CategoryNode } from '@/types/categories'
+import type { ExportScopeOption } from '@/types/export'
 
 const categoriesStore = useCategoriesStore()
 const router = useRouter()
 const selectedCategory = shallowRef<CategoryNode>()
 const isSubmitting = shallowRef(false)
+const isExportDialogVisible = shallowRef(false)
+const exportScopeOptions = computed<ExportScopeOption[]>(() => {
+  const category = selectedCategory.value
+  if (category === undefined) {
+    return []
+  }
+  return [
+    {
+      scope: { kind: 'category', id: category.id },
+      title: '仅当前分类',
+      description: `导出「${category.name}」直属的笔记。`,
+    },
+    {
+      scope: { kind: 'categoryWithDescendants', id: category.id },
+      title: '当前分类及全部子分类',
+      description: '保留分类层级，并把图片统一放在导出根目录。',
+    },
+  ]
+})
 
 async function addCategory(parent?: CategoryNode): Promise<void> {
   if (parent?.level === 5) {
@@ -154,6 +183,11 @@ function viewNotes(category: CategoryNode): void {
   void router.push({ name: 'workbench', query: { category: category.id } })
 }
 
+function openExport(category: CategoryNode): void {
+  selectedCategory.value = category
+  isExportDialogVisible.value = true
+}
+
 function createNoteFromSidebar(): void {
   void router.push({ name: 'workbench', query: { create: '1' } })
 }
@@ -242,6 +276,10 @@ onMounted(() => {
                 <el-icon><View /></el-icon>
                 查看笔记
               </el-button>
+              <el-button @click="openExport(selectedCategory)">
+                <el-icon><Download /></el-icon>
+                导出 Markdown
+              </el-button>
               <el-button
                 :disabled="isSubmitting || selectedCategory.level >= 5"
                 @click="addCategory(selectedCategory)"
@@ -278,6 +316,7 @@ onMounted(() => {
       </section>
     </template>
   </ManagementLayout>
+  <ExportDialog v-model="isExportDialogVisible" :scope-options="exportScopeOptions" />
 </template>
 
 <style scoped lang="scss">

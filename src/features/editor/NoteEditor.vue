@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Delete, Folder } from '@element-plus/icons-vue'
+import { Delete, Download, Folder } from '@element-plus/icons-vue'
 import { computed, useTemplateRef, watch } from 'vue'
 import MarkdownEditor from './MarkdownEditor.vue'
 import MissingAssetNotice from './MissingAssetNotice.vue'
@@ -28,6 +28,7 @@ const emit = defineEmits<{
   updateCategory: [categoryId: string | undefined]
   updateTags: [tagIds: string[]]
   createTag: [name: string]
+  export: []
   trash: []
 }>()
 
@@ -64,6 +65,10 @@ function updateContent(content: string): void {
         <SaveStatus :status="saveStatus" :message="saveError" />
         <el-button v-if="saveStatus === 'failed'" text type="primary" @click="emit('retry')">
           重试
+        </el-button>
+        <el-button text aria-label="导出 Markdown" @click="emit('export')">
+          <el-icon><Download /></el-icon>
+          导出
         </el-button>
         <el-button text type="danger" circle aria-label="移入回收站" @click="emit('trash')">
           <el-icon><Delete /></el-icon>

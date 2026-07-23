@@ -7,6 +7,13 @@ mod services;
 pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_opener::Builder::new()
+                .open_js_links_on_click(false)
+                .build(),
+        )
+        .manage(services::export::ExportTaskRegistry::default())
         .invoke_handler(tauri::generate_handler![
             commands::bootstrap::bootstrap_app,
             commands::notes::create_note,
@@ -17,6 +24,9 @@ pub fn run() -> Result<(), tauri::Error> {
             commands::notes::save_recovery_draft,
             commands::search::search_notes,
             commands::search::rebuild_search_index,
+            commands::export::export_notes,
+            commands::export::cancel_export,
+            commands::export::open_export_directory,
             commands::assets::save_pasted_image,
             commands::assets::get_note_asset_health,
             commands::categories::list_categories,
