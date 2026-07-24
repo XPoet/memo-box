@@ -22,6 +22,7 @@ pub fn run() -> Result<(), tauri::Error> {
         .manage(services::export::ExportTaskRegistry::default())
         .invoke_handler(tauri::generate_handler![
             commands::bootstrap::bootstrap_app,
+            commands::bootstrap::show_main_window,
             commands::notes::create_note,
             commands::notes::list_notes,
             commands::notes::get_note,

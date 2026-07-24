@@ -14,18 +14,28 @@ export const useSettingsStore = defineStore('settings', () => {
   const error = shallowRef<SettingsError>()
   const isLoading = shallowRef(false)
   const isSaving = shallowRef(false)
+  let loadingTask: Promise<void> | undefined
 
-  async function load(): Promise<void> {
+  function load(): Promise<void> {
+    if (snapshot.value !== undefined) return Promise.resolve()
+    if (loadingTask !== undefined) return loadingTask
+
     isLoading.value = true
     error.value = undefined
-    try {
-      snapshot.value = await getSettings()
-      applyAppearance(snapshot.value)
-    } catch (failure: unknown) {
-      error.value = toSettingsError(failure)
-    } finally {
-      isLoading.value = false
-    }
+    loadingTask = getSettings()
+      .then((settings) => {
+        snapshot.value = settings
+        applyAppearance(settings)
+      })
+      .catch((failure: unknown) => {
+        error.value = toSettingsError(failure)
+      })
+      .finally(() => {
+        isLoading.value = false
+        loadingTask = undefined
+      })
+
+    return loadingTask
   }
 
   async function save(request: SaveSettingsRequest): Promise<void> {

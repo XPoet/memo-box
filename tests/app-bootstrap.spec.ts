@@ -9,6 +9,10 @@ vi.mock('@/services/bootstrap', () => ({
   toBootstrapError: (error: unknown) => error,
 }))
 
+vi.mock('@/services/window', () => ({
+  showMainWindow: vi.fn(),
+}))
+
 describe('AppBootstrap', () => {
   beforeEach(() => {
     setActivePinia(createPinia())

@@ -19,3 +19,18 @@ pub async fn bootstrap_app(app: AppHandle) -> Result<BootstrapSnapshot, Bootstra
 
     Ok(snapshot)
 }
+
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) -> Result<(), BootstrapCommandError> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(BootstrapCommandError::bootstrap_failed)?;
+    window
+        .show()
+        .map_err(|_| BootstrapCommandError::bootstrap_failed())?;
+    window
+        .set_focus()
+        .map_err(|_| BootstrapCommandError::bootstrap_failed())?;
+
+    Ok(())
+}

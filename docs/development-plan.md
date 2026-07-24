@@ -746,8 +746,8 @@ flowchart LR
   - 主题、排序、字体、分类计数、默认导出目录和版本符合 Pencil。
   - 窗口状态不会恢复到不可见屏幕区域。
   - 产品中无备份、云同步和账号相关入口。
-- **完成证据**：2026-07-24 已先将 `docs/DATABASE.md` 更新至 V005、`docs/IPC.md` 更新至 V006，再复用 V001 的 `app_settings`，新增 Settings Domain／Repository／Service／Command 与前端 Service／Pinia／设置页。后端白名单校验主题、排序、14～18 px 字体和分类计数；默认导出目录仅接受系统目录选择器结果，规范化后验证为既有可写目录，响应只返回目录名称；打开数据目录不接收前端路径。主题和字体在应用启动后立即恢复，`note_sort` 同时作用于全部、分类和标签列表；置顶始终优先。已新增 `tauri-plugin-window-state` 2.4.1 及最小 Capability，由插件恢复可见窗口位置和尺寸。`pnpm check`（15 个前端测试文件、24 个测试）、`cargo test --manifest-path src-tauri/Cargo.toml settings`、完整 Rust Clippy／测试和 `pnpm exec tauri build --debug` 均通过；debug `.app` 与 `MemoBox_0.1.0_aarch64.dmg` 已生成，DMG SHA-256 为 `aa72e43c6a77fc577bac97b72472e409ec0b835f2f8e99979f5462bac49fe206`。
-- **遗留风险**：静态 Vite 页面不包含 Tauri IPC，无法替代设置保存、目录打开和窗口恢复的原生交互验收；`agent-browser` 在当前环境不可用，已通过本地服务响应、Rust 回归和原生包构建验证，完整人工原生交互继续在 T13 执行。Vite 仍存在既有单 JavaScript 包超过 500 KiB 的非阻断提示，拆包评估留在 T12。
+- **完成证据**：2026-07-24 已先将 `docs/DATABASE.md` 更新至 V005、`docs/IPC.md` 更新至 V007，再复用 V001 的 `app_settings`，新增 Settings Domain／Repository／Service／Command 与前端 Service／Pinia／设置页。后端白名单校验主题、排序、14～18 px 字体和分类计数；默认导出目录仅接受系统目录选择器结果，规范化后验证为既有可写目录，响应只返回目录名称；打开数据目录不接收前端路径。主题和字体在应用启动后立即恢复，`note_sort` 同时作用于全部、分类和标签列表；置顶始终优先。已新增 `tauri-plugin-window-state` 2.4.1 及最小 Capability，由插件恢复可见窗口位置和尺寸。人工审查整改后，原生窗口立即以设计稿暖色背景创建，首帧 UI 完成两次绘制后经受控 `show_main_window` 显示并聚焦；静态 Vite 预览安全忽略该原生命令。设置加载不再切换全局启动遮罩，已加载快照会复用。新增应用壳、Window Service 和设置 Store 回归测试；2026-07-24 复验 `pnpm check`（17 个前端测试文件、28 个测试；20 个 Rust 测试）、`pnpm exec tauri build --debug --bundles app`，并以 `pnpm tauri:dev` 实测工作台首屏、设置页加载和返回全部笔记均正常。
+- **遗留风险**：静态 Vite 页面不包含 Tauri IPC，无法替代设置保存、目录打开和窗口恢复的原生交互验收；本次通过 `pnpm tauri:dev` 启动链路、组件回归、原生构建和 Rust 回归收敛风险。Vite 仍存在既有单 JavaScript 包超过 500 KiB 的非阻断提示，拆包评估留在 T12。
 - **Git 提交**：本次任务提交 `feat: 完成 M4 个性化与桌面体验`。
 - **Git 提交说明**：`feat: 完成设置与本地偏好闭环`。
 
@@ -1055,6 +1055,7 @@ flowchart LR
 | 2026-07-24 | A017 | 完成 T08，并将中文搜索词元化和索引重建写入 V003／IPC 契约 | SQLite 默认词法器无法匹配连续中文短语；采用 Rust 统一分词后的 FTS5 索引，既保持全离线，又可用相同规则完成中文、英文、数字和多关键词 AND 查询 | T08 |
 | 2026-07-24 | A018 | 完成 T09，并以系统目录选择器与后端任务记录收紧导出路径边界 | 导出需让用户指定目录，同时不能向前端暴露绝对路径或开放任意 Finder 路径；仅允许目录选择结果进入导出、结果只返显示名，打开目录仅接受已登记任务 ID | T09、T10 |
 | 2026-07-24 | A019 | 完成 M4，并复用 `app_settings` 而不新增 Migration | V001 已包含通用设置表；本次只新增受限键和值契约，避免无结构变化的 Migration，同时以 Rust 白名单控制排序和目录边界 | T10、T11 |
+| 2026-07-24 | A020 | 修复 M4 启动白屏与设置页加载循环 | 全局应用壳错误地将 Settings Store 的临时加载状态视为启动状态，导致进入设置页时卸载路由并重新触发初始化；改为只由本地工作区启动状态控制应用壳，首次绘制后再显示原生窗口，并复用已加载设置快照 | T10、M4 人工审查整改 |
 
 后续调整规则：
 

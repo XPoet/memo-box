@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { nextTick, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
+import { showMainWindow } from '@/services/window'
 import { useAppStore } from '@/stores/app'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -8,8 +9,24 @@ const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const { error, status } = storeToRefs(appStore)
 
+async function showWindowAfterFirstPaint(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(resolve)
+    })
+  })
+
+  await showMainWindow()
+}
+
+async function initialize(): Promise<void> {
+  await Promise.all([appStore.bootstrap(), settingsStore.load()])
+  await nextTick()
+  await showWindowAfterFirstPaint()
+}
+
 onMounted(() => {
-  void Promise.all([appStore.bootstrap(), settingsStore.load()])
+  void initialize()
 })
 </script>
 
@@ -53,6 +70,7 @@ onMounted(() => {
 
 .loading-panel {
   display: grid;
+  min-block-size: 132px;
   justify-items: center;
   gap: var(--space-12);
   padding: var(--space-32);
@@ -83,7 +101,11 @@ onMounted(() => {
 }
 
 .loading-icon {
-  color: var(--color-accent);
+  inline-size: 28px;
+  block-size: 28px;
+  border: 3px solid color-mix(in srgb, var(--color-accent) 18%, transparent);
+  border-block-start-color: var(--color-accent);
+  border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }
 

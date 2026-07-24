@@ -42,6 +42,16 @@ describe('settings store', () => {
     expect(document.documentElement.style.getPropertyValue('--editor-font-size')).toBe('17px')
   })
 
+  it('重复进入设置不会重复读取已经加载的快照', async () => {
+    settingsService.getSettings.mockResolvedValue(snapshot)
+    const store = useSettingsStore()
+
+    await store.load()
+    await store.load()
+
+    expect(settingsService.getSettings).toHaveBeenCalledTimes(1)
+  })
+
   it('保存合法设置后仅保留安全快照，不持久化目录绝对路径', async () => {
     settingsService.saveSettings.mockResolvedValue(snapshot)
     const store = useSettingsStore()
