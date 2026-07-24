@@ -37,6 +37,7 @@
     "@vitejs/plugin-vue": "6.0.8",
     "@vue/test-utils": "2.4.11",
     "@vue/tsconfig": "0.9.1",
+    "code-inspector-plugin": "2.0.4",
     "jsdom": "29.1.1",
     "oxfmt": "0.60.0",
     "oxlint": "1.75.0",
