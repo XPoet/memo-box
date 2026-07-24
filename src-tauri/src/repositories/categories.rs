@@ -6,6 +6,7 @@ use crate::domain::categories::{
     CategoryDeleteImpact, CategoryDeleteMode, CategoryError, CategoryNode,
 };
 use crate::domain::notes::NoteSummary;
+use crate::domain::settings::NoteSort;
 
 #[derive(Clone)]
 struct CategoryRecord {
@@ -307,17 +308,24 @@ impl CategoriesRepository {
     pub fn notes_by_category(
         connection: &Connection,
         category_id: Option<&str>,
+        note_sort: NoteSort,
     ) -> Result<Vec<NoteSummary>, CategoryError> {
         let sql = match category_id {
             Some(_) => {
-                "WITH RECURSIVE descendants(id) AS (SELECT id FROM categories WHERE id = ?1 UNION ALL SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id) SELECT id, title, content, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IN descendants ORDER BY is_pinned DESC, updated_at DESC, id DESC"
+                format!(
+                    "WITH RECURSIVE descendants(id) AS (SELECT id FROM categories WHERE id = ?1 UNION ALL SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id) SELECT id, title, content, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IN descendants ORDER BY is_pinned DESC, {}",
+                    note_sort.order_by_sql()
+                )
             }
             None => {
-                "SELECT id, title, content, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IS NULL ORDER BY is_pinned DESC, updated_at DESC, id DESC"
+                format!(
+                    "SELECT id, title, content, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IS NULL ORDER BY is_pinned DESC, {}",
+                    note_sort.order_by_sql()
+                )
             }
         };
         let mut statement = connection
-            .prepare(sql)
+            .prepare(&sql)
             .map_err(|_| CategoryError::OperationFailed)?;
         let mapper = |row: &rusqlite::Row<'_>| {
             let content: String = row.get(2)?;

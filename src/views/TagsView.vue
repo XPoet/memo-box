@@ -7,11 +7,13 @@ import ManagementLayout from '@/layouts/ManagementLayout.vue'
 import ExportDialog from '@/features/export/ExportDialog.vue'
 import { createTag, deleteTag, mergeTag, renameTag } from '@/services/tags'
 import { useCategoriesStore } from '@/stores/categories'
+import { useSettingsStore } from '@/stores/settings'
 import { useTagsStore } from '@/stores/tags'
 import type { TagSummary } from '@/types/tags'
 import type { ExportScopeOption } from '@/types/export'
 
 const categoriesStore = useCategoriesStore()
+const settingsStore = useSettingsStore()
 const tagsStore = useTagsStore()
 const router = useRouter()
 const query = shallowRef('')
@@ -148,6 +150,7 @@ onMounted(() => {
     title="标签管理"
     description="标签可重复用于多条笔记；多标签筛选默认同时满足全部标签。"
     :categories="categoriesStore.categories"
+    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     :tag-count="tagsStore.tags.length"
     @create="createNoteFromSidebar"
   >

@@ -18,6 +18,7 @@ pub struct NoteDetail {
     pub title: String,
     pub content: String,
     pub category_id: Option<String>,
+    pub is_pinned: bool,
     pub created_at: String,
     pub updated_at: String,
 }

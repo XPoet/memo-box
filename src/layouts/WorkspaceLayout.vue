@@ -5,6 +5,7 @@ import type { CategoryNode } from '@/types/categories'
 defineProps<{
   categories: CategoryNode[]
   tagCount?: number
+  showCategoryCounts?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -15,7 +16,12 @@ const emit = defineEmits<{
 <template>
   <main class="workspace-layout">
     <aside class="sidebar" aria-label="主导航">
-      <AppSidebar :categories="categories" :tag-count="tagCount" @create="emit('create')" />
+      <AppSidebar
+        :categories="categories"
+        :tag-count="tagCount"
+        :show-category-counts="showCategoryCounts"
+        @create="emit('create')"
+      />
     </aside>
     <section class="note-list-panel" aria-label="笔记列表">
       <slot name="list" />
@@ -55,7 +61,13 @@ const emit = defineEmits<{
   background: var(--color-surface);
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1400px) {
+  .workspace-layout {
+    grid-template-columns: 210px 320px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1100px) {
   .workspace-layout {
     grid-template-columns: 72px minmax(280px, 320px) minmax(0, 1fr);
   }

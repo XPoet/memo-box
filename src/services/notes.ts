@@ -66,6 +66,10 @@ export function saveNote(request: NoteSaveRequest): Promise<NoteDetail> {
   return call<NoteDetail>('save_note', request)
 }
 
+export function setNotePinned(id: string, pinned: boolean): Promise<NoteDetail> {
+  return call<NoteDetail>('set_note_pinned', { id, pinned })
+}
+
 export function cleanupEmptyNote(id: string): Promise<void> {
   return call<void>('cleanup_empty_note', { id })
 }

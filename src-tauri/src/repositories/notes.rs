@@ -1,6 +1,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::domain::notes::{NoteDetail, NoteError, NoteSummary};
+use crate::domain::settings::NoteSort;
 
 pub struct NotesRepository;
 
@@ -23,14 +24,18 @@ impl NotesRepository {
         Self::find_detail(connection, id)
     }
 
-    pub fn list(connection: &Connection) -> Result<Vec<NoteSummary>, NoteError> {
+    pub fn list(
+        connection: &Connection,
+        note_sort: NoteSort,
+    ) -> Result<Vec<NoteSummary>, NoteError> {
+        let sql = format!(
+            "SELECT id, title, content, created_at, updated_at
+             FROM notes WHERE is_deleted = 0
+             ORDER BY is_pinned DESC, {}",
+            note_sort.order_by_sql()
+        );
         let mut statement = connection
-            .prepare(
-                "SELECT id, title, content, created_at, updated_at
-                 FROM notes
-                 WHERE is_deleted = 0
-                 ORDER BY is_pinned DESC, updated_at DESC, id DESC",
-            )
+            .prepare(&sql)
             .map_err(|_| NoteError::ListFailed)?;
         let rows = statement
             .query_map([], |row| {
@@ -51,7 +56,7 @@ impl NotesRepository {
     pub fn find_detail(connection: &Connection, id: &str) -> Result<NoteDetail, NoteError> {
         connection
             .query_row(
-                "SELECT id, title, content, category_id, created_at, updated_at
+                "SELECT id, title, content, category_id, is_pinned, created_at, updated_at
                  FROM notes WHERE id = ?1 AND is_deleted = 0",
                 params![id],
                 |row| {
@@ -60,8 +65,9 @@ impl NotesRepository {
                         title: row.get(1)?,
                         content: row.get(2)?,
                         category_id: row.get(3)?,
-                        created_at: row.get(4)?,
-                        updated_at: row.get(5)?,
+                        is_pinned: row.get(4)?,
+                        created_at: row.get(5)?,
+                        updated_at: row.get(6)?,
                     })
                 },
             )
@@ -85,6 +91,28 @@ impl NotesRepository {
                 "UPDATE notes SET title = ?2, content = ?3, updated_at = ?4
                  WHERE id = ?1 AND is_deleted = 0",
                 params![id, title, content, now],
+            )
+            .map_err(|_| NoteError::SaveFailed)?;
+        if changed == 0 {
+            return Err(NoteError::NotFound);
+        }
+        transaction.commit().map_err(|_| NoteError::SaveFailed)?;
+        Self::find_detail(connection, id)
+    }
+
+    pub fn set_pinned(
+        connection: &mut Connection,
+        id: &str,
+        pinned: bool,
+        now: &str,
+    ) -> Result<NoteDetail, NoteError> {
+        let transaction = connection
+            .transaction()
+            .map_err(|_| NoteError::SaveFailed)?;
+        let changed = transaction
+            .execute(
+                "UPDATE notes SET is_pinned = ?2, updated_at = ?3 WHERE id = ?1 AND is_deleted = 0",
+                params![id, i64::from(pinned), now],
             )
             .map_err(|_| NoteError::SaveFailed)?;
         if changed == 0 {

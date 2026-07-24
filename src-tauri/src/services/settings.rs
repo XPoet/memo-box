@@ -1,0 +1,155 @@
+use std::path::{Path, PathBuf};
+
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
+
+use crate::database::connection::open_database;
+use crate::domain::settings::{SaveSettingsRequest, SettingsError, SettingsSnapshot};
+use crate::repositories::settings::SettingsRepository;
+
+pub struct SettingsService {
+    database_path: PathBuf,
+}
+
+impl SettingsService {
+    pub fn new(data_directory: &Path) -> Self {
+        Self {
+            database_path: data_directory.join("database").join("memobox.db"),
+        }
+    }
+
+    pub fn get(&self, app_version: &str) -> Result<SettingsSnapshot, SettingsError> {
+        let connection =
+            open_database(&self.database_path).map_err(|_| SettingsError::ReadFailed)?;
+        snapshot(&connection, app_version)
+    }
+
+    pub fn save(
+        &self,
+        request: &SaveSettingsRequest,
+        app_version: &str,
+    ) -> Result<SettingsSnapshot, SettingsError> {
+        validate_request(request)?;
+        let default_directory = match request.default_export_directory.as_ref() {
+            None => None,
+            Some(None) => Some(None),
+            Some(Some(directory)) => Some(Some(validate_export_directory(directory)?)),
+        };
+        let mut connection =
+            open_database(&self.database_path).map_err(|_| SettingsError::SaveFailed)?;
+        SettingsRepository::save(
+            &mut connection,
+            request,
+            default_directory
+                .as_ref()
+                .map(|directory| directory.as_deref()),
+            &current_time()?,
+        )?;
+        snapshot(&connection, app_version)
+    }
+}
+
+fn snapshot(
+    connection: &rusqlite::Connection,
+    app_version: &str,
+) -> Result<SettingsSnapshot, SettingsError> {
+    let values = SettingsRepository::read_values(connection)?;
+    let directory_label = values
+        .get("default_export_directory")
+        .and_then(|path| valid_directory_label(Path::new(path)));
+    Ok(SettingsSnapshot {
+        theme: SettingsRepository::theme(&values),
+        note_sort: SettingsRepository::note_sort(connection)?,
+        editor_font_size: SettingsRepository::editor_font_size(&values),
+        show_category_counts: SettingsRepository::show_category_counts(&values),
+        default_export_directory_label: directory_label,
+        app_version: app_version.to_owned(),
+        schema_version: SettingsRepository::schema_version(connection)?,
+    })
+}
+
+fn validate_request(request: &SaveSettingsRequest) -> Result<(), SettingsError> {
+    if !(14..=18).contains(&request.editor_font_size) {
+        return Err(SettingsError::ValidationFailed);
+    }
+    Ok(())
+}
+
+fn validate_export_directory(value: &str) -> Result<String, SettingsError> {
+    let path = Path::new(value);
+    if !path.is_absolute() || !path.is_dir() {
+        return Err(SettingsError::DirectoryUnavailable);
+    }
+    let canonical = path
+        .canonicalize()
+        .map_err(|_| SettingsError::DirectoryUnavailable)?;
+    let metadata = canonical
+        .metadata()
+        .map_err(|_| SettingsError::DirectoryUnavailable)?;
+    if metadata.permissions().readonly() {
+        return Err(SettingsError::DirectoryNotWritable);
+    }
+    Ok(canonical.to_string_lossy().into_owned())
+}
+
+fn valid_directory_label(path: &Path) -> Option<String> {
+    let metadata = path.metadata().ok()?;
+    if !metadata.is_dir() || metadata.permissions().readonly() {
+        return None;
+    }
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+fn current_time() -> Result<String, SettingsError> {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .map_err(|_| SettingsError::SaveFailed)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use crate::repositories::bootstrap::BootstrapRepository;
+    use crate::{
+        domain::settings::{NoteSort, ThemePreference},
+        services::settings::SettingsService,
+    };
+
+    use super::SaveSettingsRequest;
+
+    fn data_directory() -> std::path::PathBuf {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |duration| duration.as_nanos());
+        let directory = std::env::temp_dir().join(format!("memo-box-settings-{stamp}"));
+        let _ = std::fs::create_dir_all(directory.join("database"));
+        directory
+    }
+
+    #[test]
+    fn saves_and_reads_allowed_preferences() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = data_directory();
+        BootstrapRepository::initialize(&directory.join("database").join("memobox.db"))?;
+        let service = SettingsService::new(&directory);
+        let snapshot = service.save(
+            &SaveSettingsRequest {
+                theme: ThemePreference::Dark,
+                note_sort: NoteSort::Title,
+                editor_font_size: 17,
+                show_category_counts: false,
+                default_export_directory: Some(Some(directory.to_string_lossy().into_owned())),
+            },
+            "0.1.0",
+        )?;
+        assert_eq!(snapshot.theme, ThemePreference::Dark);
+        assert_eq!(snapshot.note_sort, NoteSort::Title);
+        assert_eq!(snapshot.editor_font_size, 17);
+        assert!(!snapshot.show_category_counts);
+        assert!(snapshot.default_export_directory_label.is_some());
+        assert_eq!(service.get("0.1.0")?.editor_font_size, 17);
+        Ok(())
+    }
+}

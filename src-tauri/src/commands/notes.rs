@@ -29,6 +29,15 @@ pub async fn save_note(
 }
 
 #[tauri::command]
+pub async fn set_note_pinned(
+    app: AppHandle,
+    id: String,
+    pinned: bool,
+) -> Result<NoteDetail, NoteCommandError> {
+    run_blocking(app, move |service| service.set_pinned(&id, pinned)).await
+}
+
+#[tauri::command]
 pub async fn cleanup_empty_note(app: AppHandle, id: String) -> Result<(), NoteCommandError> {
     run_blocking(app, move |service| service.cleanup_empty(&id)).await
 }

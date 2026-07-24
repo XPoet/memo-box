@@ -17,6 +17,7 @@ const props = defineProps<{
   categories: CategoryNode[]
   tagCount?: number
   trashCount?: number
+  showCategoryCounts?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -30,7 +31,9 @@ const isRecentView = computed(
   () => activeRouteName.value === 'workbench' && route.query.sort === 'updated',
 )
 
-function isActive(name: 'workbench' | 'categories' | 'tags' | 'trash' | 'search'): boolean {
+function isActive(
+  name: 'workbench' | 'categories' | 'tags' | 'trash' | 'search' | 'settings',
+): boolean {
   return activeRouteName.value === name
 }
 
@@ -67,6 +70,14 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
       >
         <el-icon><Document /></el-icon>
         <span>全部笔记</span>
+      </RouterLink>
+      <RouterLink
+        class="sidebar-nav-item"
+        :class="{ 'sidebar-nav-item--active': isActive('settings') }"
+        to="/settings"
+      >
+        <el-icon><Setting /></el-icon>
+        <span>设置</span>
       </RouterLink>
       <RouterLink
         class="sidebar-nav-item"
@@ -126,7 +137,9 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
         >
           <el-icon><Folder /></el-icon>
           <span class="sidebar-category-name">{{ category.name }}</span>
-          <small class="sidebar-nav-count">{{ category.noteCount }}</small>
+          <small v-if="showCategoryCounts !== false" class="sidebar-nav-count">{{
+            category.noteCount
+          }}</small>
         </RouterLink>
       </div>
       <p v-else class="sidebar-category-empty">暂无分类</p>
@@ -303,5 +316,43 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   padding: 6px 8px;
   color: var(--color-text-muted);
   font-size: 0.75rem;
+}
+
+@media (max-width: 1100px) {
+  .app-sidebar {
+    padding-inline: var(--space-8);
+  }
+
+  .sidebar-brand {
+    justify-content: center;
+  }
+
+  .sidebar-brand > span:last-child,
+  .sidebar-create-button > :not(.el-icon),
+  .sidebar-nav-item > span,
+  .sidebar-nav-count,
+  .sidebar-categories-heading > span,
+  .sidebar-category-name,
+  .sidebar-category-empty {
+    display: none;
+  }
+
+  .sidebar-create-button {
+    padding-inline: 0;
+  }
+
+  .sidebar-nav-item,
+  .sidebar-category-item {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .sidebar-category-item {
+    padding-inline-start: 0 !important;
+  }
+
+  .sidebar-categories-heading {
+    justify-content: center;
+  }
 }
 </style>

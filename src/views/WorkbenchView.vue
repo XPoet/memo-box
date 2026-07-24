@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { computed, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
@@ -13,6 +13,7 @@ import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue'
 import { useNotesStore } from '@/stores/notes'
 import { useCategoriesStore } from '@/stores/categories'
 import { useTagsStore } from '@/stores/tags'
+import { useSettingsStore } from '@/stores/settings'
 import { createTag, listNoteTags, setNoteTags } from '@/services/tags'
 import { setNoteCategory } from '@/services/categories'
 import { trashNote } from '@/services/trash'
@@ -22,6 +23,7 @@ import type { ExportScopeOption } from '@/types/export'
 const notesStore = useNotesStore()
 const categoriesStore = useCategoriesStore()
 const tagsStore = useTagsStore()
+const settingsStore = useSettingsStore()
 const route = useRoute()
 const router = useRouter()
 const { error, isLoading, notes, saveStatus, selectedNote } = storeToRefs(notesStore)
@@ -29,6 +31,7 @@ const missingAssetCount = shallowRef(0)
 const selectedTagIds = shallowRef<string[]>([])
 const imageError = shallowRef<string>()
 const isExportDialogVisible = shallowRef(false)
+const noteEditor = useTemplateRef<{ focusEditor: () => void }>('noteEditor')
 const exportScopeOptions = computed<ExportScopeOption[]>(() => {
   const note = selectedNote.value
   if (note === undefined) {
@@ -234,9 +237,32 @@ function handleKeyboardShortcut(event: KeyboardEvent): void {
     event.preventDefault()
     void handleCreate()
   }
+  if (event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    void router.push({ name: 'search' })
+  }
+  if (event.key.toLowerCase() === 'e') {
+    event.preventDefault()
+    noteEditor.value?.focusEditor()
+  }
   if (event.key.toLowerCase() === 's') {
     event.preventDefault()
     void autoSave.flush().catch(() => undefined)
+  }
+  if (event.key === 'Backspace' && event.shiftKey) {
+    event.preventDefault()
+    void handleTrash()
+  }
+}
+
+async function handleTogglePin(): Promise<void> {
+  const note = selectedNote.value
+  if (note === undefined) return
+  try {
+    await notesStore.setPinned(!note.isPinned)
+    ElMessage.success(note.isPinned ? '已取消置顶。' : '笔记已置顶。')
+  } catch {
+    ElMessage.error('无法更新置顶状态。')
   }
 }
 
@@ -276,6 +302,7 @@ onBeforeUnmount(() => {
   <WorkspaceLayout
     :categories="categoriesStore.categories"
     :tag-count="tagsStore.tags.length"
+    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     @create="handleCreate"
   >
     <template #list>
@@ -292,6 +319,7 @@ onBeforeUnmount(() => {
 
     <template #editor>
       <NoteEditor
+        ref="noteEditor"
         :note="selectedNote"
         :save-status="saveStatus"
         :save-error="error?.message"
@@ -306,6 +334,7 @@ onBeforeUnmount(() => {
         @create-tag="handleCreateTag"
         @export="handleExport"
         @trash="handleTrash"
+        @toggle-pin="handleTogglePin"
         @retry="autoSave.flush().catch(() => undefined)"
         @paste-error="imageError = $event"
       />

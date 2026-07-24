@@ -6,6 +6,7 @@ import {
   getNote,
   listNotes,
   saveNote,
+  setNotePinned,
   saveRecoveryDraft,
   toNoteError,
 } from '@/services/notes'
@@ -158,6 +159,14 @@ export const useNotesStore = defineStore('notes', () => {
     await refreshNotes()
   }
 
+  async function setPinned(pinned: boolean): Promise<void> {
+    const note = selectedNote.value
+    if (note === undefined) return
+    await flush()
+    selectedNote.value = await setNotePinned(note.id, pinned)
+    await refreshNotes()
+  }
+
   return {
     notes,
     selectedNote,
@@ -174,5 +183,6 @@ export const useNotesStore = defineStore('notes', () => {
     selectNote,
     create,
     reloadSelected,
+    setPinned,
   }
 })

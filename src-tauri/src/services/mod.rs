@@ -4,5 +4,6 @@ pub mod categories;
 pub mod export;
 pub mod notes;
 pub mod search;
+pub mod settings;
 pub mod tags;
 pub mod trash;

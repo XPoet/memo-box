@@ -7,6 +7,7 @@ use crate::database::connection::open_database;
 use crate::domain::notes::NoteSummary;
 use crate::domain::tags::{RenameTagResult, TagError, TagSummary};
 use crate::repositories::search::SearchRepository;
+use crate::repositories::settings::SettingsRepository;
 use crate::repositories::tags::TagsRepository;
 
 pub struct TagsService {
@@ -70,7 +71,8 @@ impl TagsService {
     pub fn notes_by_tags(&self, tag_ids: &[String]) -> Result<Vec<NoteSummary>, TagError> {
         let connection =
             open_database(&self.database_path).map_err(|_| TagError::OperationFailed)?;
-        TagsRepository::notes_by_tags(&connection, tag_ids)
+        let note_sort = SettingsRepository::note_sort(&connection).unwrap_or_default();
+        TagsRepository::notes_by_tags(&connection, tag_ids, note_sort)
     }
 }
 fn normalized_name(value: &str) -> Result<String, TagError> {

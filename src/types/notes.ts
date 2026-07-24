@@ -11,6 +11,7 @@ export interface NoteDetail {
   title: string
   content: string
   categoryId?: string
+  isPinned: boolean
   createdAt: string
   updatedAt: string
 }

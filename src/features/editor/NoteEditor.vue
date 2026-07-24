@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Delete, Download, Folder } from '@element-plus/icons-vue'
+import { Delete, Download, Folder, Star, StarFilled } from '@element-plus/icons-vue'
 import { computed, useTemplateRef, watch } from 'vue'
 import MarkdownEditor from './MarkdownEditor.vue'
 import MissingAssetNotice from './MissingAssetNotice.vue'
@@ -30,9 +30,11 @@ const emit = defineEmits<{
   createTag: [name: string]
   export: []
   trash: []
+  togglePin: []
 }>()
 
 const titleInput = useTemplateRef<{ focus: () => void }>('titleInput')
+const markdownEditor = useTemplateRef<{ focus: () => void }>('markdownEditor')
 const noteId = computed(() => props.note?.id)
 
 watch(noteId, () => {
@@ -52,6 +54,12 @@ function updateContent(content: string): void {
     emit('update', { title: note.title, content })
   }
 }
+
+function focusEditor(): void {
+  markdownEditor.value?.focus()
+}
+
+defineExpose({ focusEditor })
 </script>
 
 <template>
@@ -69,6 +77,14 @@ function updateContent(content: string): void {
         <el-button text aria-label="导出 Markdown" @click="emit('export')">
           <el-icon><Download /></el-icon>
           导出
+        </el-button>
+        <el-button
+          text
+          :aria-label="note.isPinned ? '取消置顶笔记' : '置顶笔记'"
+          @click="emit('togglePin')"
+        >
+          <el-icon><StarFilled v-if="note.isPinned" /><Star v-else /></el-icon>
+          {{ note.isPinned ? '已置顶' : '置顶' }}
         </el-button>
         <el-button text type="danger" circle aria-label="移入回收站" @click="emit('trash')">
           <el-icon><Delete /></el-icon>
@@ -95,6 +111,7 @@ function updateContent(content: string): void {
       />
       <MissingAssetNotice :missing-asset-count="missingAssetCount" />
       <MarkdownEditor
+        ref="markdownEditor"
         :key="note.id"
         class="note-editor-body"
         :model-value="note.content"
@@ -145,6 +162,7 @@ function updateContent(content: string): void {
 
 .note-title-input {
   inline-size: 100%;
+  min-inline-size: 0;
 }
 
 .note-title-input :deep(.el-input__wrapper) {
@@ -153,6 +171,7 @@ function updateContent(content: string): void {
 }
 
 .note-title-input :deep(.el-input__inner) {
+  min-inline-size: 0;
   block-size: auto;
   color: var(--color-text-primary);
   font-size: 1.75rem;
@@ -173,6 +192,7 @@ function updateContent(content: string): void {
 
 .note-editor-content {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto minmax(0, 1fr);
   min-block-size: 0;
   padding: 30px 44px 0;

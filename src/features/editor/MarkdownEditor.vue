@@ -72,6 +72,12 @@ function redo(): boolean {
   return true
 }
 
+function focus(): void {
+  editorView.value?.focus()
+}
+
+defineExpose({ focus })
+
 onMounted(() => {
   const host = editorHost.value
   if (host === null) {
@@ -144,7 +150,7 @@ onBeforeUnmount(() => {
   overflow: auto;
   color: var(--color-text-primary);
   font-family: 'Geist Mono', 'SFMono-Regular', Consolas, monospace;
-  font-size: 0.875rem;
+  font-size: var(--editor-font-size);
   line-height: 1.8;
 }
 

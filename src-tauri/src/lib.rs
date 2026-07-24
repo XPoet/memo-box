@@ -13,6 +13,12 @@ pub fn run() -> Result<(), tauri::Error> {
                 .open_js_links_on_click(false)
                 .build(),
         )
+        .setup(|app| {
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_window_state::Builder::default().build())?;
+            Ok(())
+        })
         .manage(services::export::ExportTaskRegistry::default())
         .invoke_handler(tauri::generate_handler![
             commands::bootstrap::bootstrap_app,
@@ -20,8 +26,12 @@ pub fn run() -> Result<(), tauri::Error> {
             commands::notes::list_notes,
             commands::notes::get_note,
             commands::notes::save_note,
+            commands::notes::set_note_pinned,
             commands::notes::cleanup_empty_note,
             commands::notes::save_recovery_draft,
+            commands::settings::get_settings,
+            commands::settings::save_settings,
+            commands::settings::open_data_directory,
             commands::search::search_notes,
             commands::search::rebuild_search_index,
             commands::export::export_notes,

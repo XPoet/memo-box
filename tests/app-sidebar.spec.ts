@@ -32,6 +32,7 @@ function createTestRouter() {
       { path: '/tags', name: 'tags', component: EmptyView },
       { path: '/trash', name: 'trash', component: EmptyView },
       { path: '/search', name: 'search', component: EmptyView },
+      { path: '/settings', name: 'settings', component: EmptyView },
     ],
   })
 }
@@ -71,6 +72,7 @@ describe('AppSidebar', () => {
     expect(hrefs).toContain(router.resolve({ name: 'tags' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'trash' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'search' }).href)
+    expect(hrefs).toContain(router.resolve({ name: 'settings' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'workbench', query: { category: 'work' } }).href)
   })
 
@@ -92,5 +94,33 @@ describe('AppSidebar', () => {
     await wrapper.get('.sidebar-create-button').trigger('click')
 
     expect(wrapper.emitted('create')).toHaveLength(1)
+  })
+
+  it('可根据本地偏好隐藏分类统计，同时保留分类导航入口', async () => {
+    const router = createTestRouter()
+    await router.push('/')
+    await router.isReady()
+    const wrapper = mount(AppSidebar, {
+      props: {
+        categories: [
+          {
+            id: 'work',
+            name: '工作',
+            level: 1,
+            sortOrder: 0,
+            path: '工作',
+            noteCount: 2,
+            children: [],
+          },
+        ],
+        showCategoryCounts: false,
+      },
+      global: { plugins: [router], stubs: { ElButton: ButtonStub, ElIcon: IconStub } },
+    })
+
+    expect(wrapper.text()).not.toContain('2')
+    expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toContain(
+      router.resolve({ name: 'workbench', query: { category: 'work' } }).href,
+    )
   })
 })

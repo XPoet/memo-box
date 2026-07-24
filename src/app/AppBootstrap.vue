@@ -2,12 +2,14 @@
 import { onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@/stores/settings'
 
 const appStore = useAppStore()
+const settingsStore = useSettingsStore()
 const { error, status } = storeToRefs(appStore)
 
 onMounted(() => {
-  void appStore.bootstrap()
+  void Promise.all([appStore.bootstrap(), settingsStore.load()])
 })
 </script>
 

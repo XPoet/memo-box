@@ -6,12 +6,14 @@ import SearchInput from '@/components/SearchInput.vue'
 import SearchResultList from '@/features/search/SearchResultList.vue'
 import ManagementLayout from '@/layouts/ManagementLayout.vue'
 import { useCategoriesStore } from '@/stores/categories'
+import { useSettingsStore } from '@/stores/settings'
 import { useSearchStore } from '@/stores/search'
 import { useTagsStore } from '@/stores/tags'
 
 const route = useRoute()
 const router = useRouter()
 const categoriesStore = useCategoriesStore()
+const settingsStore = useSettingsStore()
 const tagsStore = useTagsStore()
 const searchStore = useSearchStore()
 const inputValue = shallowRef('')
@@ -74,6 +76,7 @@ onMounted(() => {
       searchStore.total > 0 ? `找到 ${searchStore.total} 篇所属笔记` : '搜索标题、正文、分类和标签'
     "
     :categories="categoriesStore.categories"
+    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     :tag-count="tagsStore.tags.length"
     @create="createNote"
   >

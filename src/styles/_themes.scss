@@ -1,4 +1,5 @@
-:root {
+:root,
+:root[data-theme='light'] {
   color-scheme: light;
   --color-accent: #d97757;
   --color-accent-hover: #c96a49;
@@ -17,8 +18,23 @@
   --shadow-floating: 0 16px 40px rgb(52 40 30 / 10%);
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-accent-soft: #4b3127;
+  --color-canvas: #211f1b;
+  --color-surface: #292620;
+  --color-sidebar: #342f28;
+  --color-text-primary: #f2ede3;
+  --color-text-secondary: #b9b1a4;
+  --color-text-muted: #8f887e;
+  --color-border: #49443b;
+  --color-divider: #3b3730;
+  --shadow-floating: 0 16px 40px rgb(0 0 0 / 24%);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-theme='system'],
+  :root:not([data-theme]) {
     color-scheme: dark;
     --color-accent-soft: #4b3127;
     --color-canvas: #211f1b;

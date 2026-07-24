@@ -7,6 +7,7 @@ const notesService = vi.hoisted(() => ({
   getNote: vi.fn(),
   listNotes: vi.fn(),
   saveNote: vi.fn(),
+  setNotePinned: vi.fn(),
   saveRecoveryDraft: vi.fn(),
   toNoteError: vi.fn((error: unknown) => error),
 }))
@@ -34,6 +35,7 @@ describe('notes store', () => {
       content: '',
       createdAt: '2026-07-23T00:00:00Z',
       updatedAt: '2026-07-23T00:00:00Z',
+      isPinned: false,
     })
     await store.create()
     store.updateDraft({ title: '标题', content: '正文' })
@@ -45,6 +47,7 @@ describe('notes store', () => {
       content: '正文',
       createdAt: '2026-07-23T00:00:00Z',
       updatedAt: '2026-07-23T00:00:01Z',
+      isPinned: false,
     })
     notesService.toNoteError.mockImplementation((error: unknown) => error)
 
@@ -66,5 +69,25 @@ describe('notes store', () => {
     await expect(store.load()).resolves.toBeUndefined()
     expect(store.error).toEqual(failure)
     expect(store.saveStatus).toBe('failed')
+  })
+
+  it('置顶前先写入草稿，再刷新同一列表数据流', async () => {
+    const store = useNotesStore()
+    const note = {
+      id: 'note-1',
+      title: '标题',
+      content: '正文',
+      isPinned: false,
+      createdAt: '2026-07-23T00:00:00Z',
+      updatedAt: '2026-07-23T00:00:00Z',
+    }
+    notesService.createNote.mockResolvedValue(note)
+    notesService.setNotePinned.mockResolvedValue({ ...note, isPinned: true })
+    await store.create()
+
+    await store.setPinned(true)
+
+    expect(notesService.setNotePinned).toHaveBeenCalledWith('note-1', true)
+    expect(store.selectedNote?.isPinned).toBe(true)
   })
 })

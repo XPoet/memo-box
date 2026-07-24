@@ -10,6 +10,7 @@ use crate::domain::categories::{
 use crate::domain::notes::NoteSummary;
 use crate::repositories::categories::CategoriesRepository;
 use crate::repositories::search::SearchRepository;
+use crate::repositories::settings::SettingsRepository;
 
 pub struct CategoriesService {
     database_path: PathBuf,
@@ -87,7 +88,8 @@ impl CategoriesService {
     ) -> Result<Vec<NoteSummary>, CategoryError> {
         let connection =
             open_database(&self.database_path).map_err(|_| CategoryError::OperationFailed)?;
-        CategoriesRepository::notes_by_category(&connection, category_id)
+        let note_sort = SettingsRepository::note_sort(&connection).unwrap_or_default();
+        CategoriesRepository::notes_by_category(&connection, category_id, note_sort)
     }
     pub fn set_note_category(
         &self,

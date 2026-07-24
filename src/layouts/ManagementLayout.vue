@@ -8,6 +8,7 @@ defineProps<{
   categories: CategoryNode[]
   tagCount?: number
   trashCount?: number
+  showCategoryCounts?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -22,6 +23,7 @@ const emit = defineEmits<{
         :categories="categories"
         :tag-count="tagCount"
         :trash-count="trashCount"
+        :show-category-counts="showCategoryCounts"
         @create="emit('create')"
       />
     </aside>
@@ -103,7 +105,13 @@ const emit = defineEmits<{
   overflow: auto;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1400px) {
+  .management-layout {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1100px) {
   .management-layout {
     grid-template-columns: 72px minmax(0, 1fr);
   }

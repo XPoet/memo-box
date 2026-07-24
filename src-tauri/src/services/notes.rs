@@ -7,6 +7,7 @@ use crate::database::connection::open_database;
 use crate::domain::notes::{NoteDetail, NoteError, NoteSummary};
 use crate::repositories::notes::NotesRepository;
 use crate::repositories::search::SearchRepository;
+use crate::repositories::settings::SettingsRepository;
 
 const MAX_TITLE_LENGTH: usize = 4_000;
 const MAX_CONTENT_LENGTH: usize = 4_000_000;
@@ -36,7 +37,8 @@ impl NotesService {
 
     pub fn list(&self) -> Result<Vec<NoteSummary>, NoteError> {
         let connection = open_database(&self.database_path).map_err(|_| NoteError::ListFailed)?;
-        NotesRepository::list(&connection)
+        let note_sort = SettingsRepository::note_sort(&connection).unwrap_or_default();
+        NotesRepository::list(&connection, note_sort)
     }
 
     pub fn get(&self, id: &str) -> Result<NoteDetail, NoteError> {
@@ -51,6 +53,12 @@ impl NotesService {
         let note = NotesRepository::save(&mut connection, id, title, content, &current_time()?)?;
         SearchRepository::rebuild_index(&mut connection).map_err(|_| NoteError::SaveFailed)?;
         Ok(note)
+    }
+
+    pub fn set_pinned(&self, id: &str, pinned: bool) -> Result<NoteDetail, NoteError> {
+        let mut connection =
+            open_database(&self.database_path).map_err(|_| NoteError::SaveFailed)?;
+        NotesRepository::set_pinned(&mut connection, id, pinned, &current_time()?)
     }
 
     pub fn cleanup_empty(&self, id: &str) -> Result<(), NoteError> {

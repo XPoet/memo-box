@@ -6,9 +6,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import ManagementLayout from '@/layouts/ManagementLayout.vue'
 import { emptyTrash, permanentlyDeleteNote, restoreNote } from '@/services/trash'
 import { useCategoriesStore } from '@/stores/categories'
+import { useSettingsStore } from '@/stores/settings'
 import { useTrashStore } from '@/stores/trash'
 
 const categoriesStore = useCategoriesStore()
+const settingsStore = useSettingsStore()
 const trashStore = useTrashStore()
 const router = useRouter()
 const isSubmitting = shallowRef(false)
@@ -107,6 +109,7 @@ onMounted(() => {
     title="回收站"
     description="删除的笔记会保留在这里，直到你手动永久删除。"
     :categories="categoriesStore.categories"
+    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     :trash-count="trashStore.notes.length"
     @create="createNoteFromSidebar"
   >

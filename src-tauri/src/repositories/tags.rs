@@ -4,6 +4,7 @@ use rusqlite::types::Value;
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::domain::notes::NoteSummary;
+use crate::domain::settings::NoteSort;
 use crate::domain::tags::{RenameTagResult, TagError, TagMergePreview, TagSummary};
 
 pub struct TagsRepository;
@@ -213,6 +214,7 @@ impl TagsRepository {
     pub fn notes_by_tags(
         connection: &Connection,
         tag_ids: &[String],
+        note_sort: NoteSort,
     ) -> Result<Vec<NoteSummary>, TagError> {
         if tag_ids.is_empty() {
             return Ok(Vec::new());
@@ -223,8 +225,9 @@ impl TagsRepository {
             .collect::<Vec<_>>()
             .join(", ");
         let sql = format!(
-            "SELECT notes.id, notes.title, notes.content, notes.created_at, notes.updated_at FROM notes JOIN note_tags ON note_tags.note_id = notes.id WHERE notes.is_deleted = 0 AND note_tags.tag_id IN ({placeholders}) GROUP BY notes.id HAVING COUNT(DISTINCT note_tags.tag_id) = ?{} ORDER BY notes.is_pinned DESC, notes.updated_at DESC, notes.id DESC",
-            unique.len() + 1
+            "SELECT notes.id, notes.title, notes.content, notes.created_at, notes.updated_at FROM notes JOIN note_tags ON note_tags.note_id = notes.id WHERE notes.is_deleted = 0 AND note_tags.tag_id IN ({placeholders}) GROUP BY notes.id HAVING COUNT(DISTINCT note_tags.tag_id) = ?{} ORDER BY notes.is_pinned DESC, {}",
+            unique.len() + 1,
+            note_sort.order_by_sql()
         );
         let mut selected_tag_ids = unique.iter().map(|id| (*id).clone()).collect::<Vec<_>>();
         selected_tag_ids.sort_unstable();

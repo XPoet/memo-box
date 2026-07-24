@@ -21,10 +21,12 @@ import {
   renameCategory,
 } from '@/services/categories'
 import { useCategoriesStore } from '@/stores/categories'
+import { useSettingsStore } from '@/stores/settings'
 import type { CategoryDeleteMode, CategoryNode } from '@/types/categories'
 import type { ExportScopeOption } from '@/types/export'
 
 const categoriesStore = useCategoriesStore()
+const settingsStore = useSettingsStore()
 const router = useRouter()
 const selectedCategory = shallowRef<CategoryNode>()
 const isSubmitting = shallowRef(false)
@@ -202,6 +204,7 @@ onMounted(() => {
     title="分类管理"
     description="最多五级，拖拽调整结构；同级分类名称不可重复。"
     :categories="categoriesStore.categories"
+    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     @create="createNoteFromSidebar"
   >
     <template #action>

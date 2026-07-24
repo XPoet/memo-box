@@ -1,8 +1,8 @@
 # MemoBox IPC 契约
 
-> 契约版本：V005
+> 契约版本：V006
 > 最后更新：2026-07-24
-> 生效任务：T02～T09 本地数据、笔记、图片、回收站、分类、标签、全局搜索与 Markdown 导出闭环
+> 生效任务：T02～T10 本地数据、笔记、图片、回收站、分类、标签、全局搜索、Markdown 导出与本地偏好闭环
 
 ## 1. 通用规则
 
@@ -52,7 +52,7 @@
 
 ### `list_notes`
 
-无参数。按 `is_pinned DESC, updated_at DESC, id DESC` 返回未删除笔记的 `NoteSummary[]`。
+无参数。读取本地 `note_sort` 设置后返回未删除笔记的 `NoteSummary[]`；`is_pinned DESC` 始终优先，再按设置映射的 `updated_at DESC`、`created_at DESC` 或 `title COLLATE NOCASE ASC`、`id DESC` 排序。前端不得传入排序字段或 SQL。
 
 | 字段             | 类型   | 说明                                   |
 | ---------------- | ------ | -------------------------------------- |
@@ -81,6 +81,10 @@
 ### 笔记错误码
 
 `NOTE_NOT_FOUND` ｜ `NOTE_VALIDATION_FAILED` ｜ `NOTE_LIST_FAILED` ｜ `NOTE_SAVE_FAILED` ｜ `RECOVERY_DRAFT_SAVE_FAILED`
+
+### `set_note_pinned`
+
+请求：`{ id: string, pinned: boolean }`。只作用于未删除笔记；在数据库事务内更新 `is_pinned` 与 `updated_at`，成功后返回更新后的 `NoteDetail`。重复设置相同状态保持幂等。错误码复用笔记错误码。
 
 ## 5. 图片资源接口
 
@@ -172,7 +176,35 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 
 `SEARCH_VALIDATION_FAILED` ｜ `SEARCH_QUERY_FAILED` ｜ `SEARCH_INDEX_REBUILD_FAILED`
 
-## 11. Markdown 导出接口
+## 11. 设置接口
+
+### `get_settings`
+
+无参数。返回 `SettingsSnapshot`：
+
+| 字段                          | 类型                                    | 说明                                                |
+| ----------------------------- | --------------------------------------- | --------------------------------------------------- |
+| `theme`                       | `'light' ｜ 'dark' ｜ 'system'`         | 默认 `system`；前端在启动前据此设置根元素属性       |
+| `noteSort`                    | `'updatedAt' ｜ 'createdAt' ｜ 'title'` | 默认 `updatedAt`                                    |
+| `editorFontSize`              | `14 ｜ 15 ｜ 16 ｜ 17 ｜ 18`            | 默认 `15`，单位为 px                                |
+| `showCategoryCounts`          | boolean                                 | 默认 `true`                                         |
+| `defaultExportDirectoryLabel` | string ｜ null                          | 仅返回目录名称，不返回绝对路径；失效目录返回 `null` |
+| `appVersion`                  | string                                  | 由应用包版本读取                                    |
+| `schemaVersion`               | number                                  | 最后成功 Migration 版本                             |
+
+### `save_settings`
+
+请求：`{ theme, noteSort, editorFontSize, showCategoryCounts, defaultExportDirectory? }`。所有非路径值必须是上述枚举或范围内的值；`defaultExportDirectory` 只能来自系统目录选择器，Rust 规范化、验证存在和可写后保存。省略该字段时保留当前默认导出目录，传入 `null` 时清除。成功返回完整 `SettingsSnapshot`，不会回传绝对路径。
+
+### `open_data_directory`
+
+无参数。后端使用 Tauri 系统应用数据目录并受控调用 opener；不接收任意路径。成功返回空值。
+
+### 设置错误码
+
+`SETTINGS_VALIDATION_FAILED` ｜ `SETTINGS_READ_FAILED` ｜ `SETTINGS_SAVE_FAILED` ｜ `SETTINGS_DIRECTORY_UNAVAILABLE` ｜ `SETTINGS_DIRECTORY_NOT_WRITABLE` ｜ `SETTINGS_OPEN_FAILED`
+
+## 12. Markdown 导出接口
 
 ### 目录选择与安全边界
 
