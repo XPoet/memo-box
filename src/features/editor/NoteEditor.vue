@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Delete, Download, Folder, Star, StarFilled } from '@element-plus/icons-vue'
 import { computed, useTemplateRef, watch } from 'vue'
+import EditorStatusBar from './EditorStatusBar.vue'
 import MarkdownEditor from './MarkdownEditor.vue'
 import MissingAssetNotice from './MissingAssetNotice.vue'
 import NoteMetadata from './NoteMetadata.vue'
@@ -110,16 +111,19 @@ defineExpose({ focusEditor })
         @update-tags="emit('updateTags', $event)"
       />
       <MissingAssetNotice :missing-asset-count="missingAssetCount" />
-      <MarkdownEditor
-        ref="markdownEditor"
-        :key="note.id"
-        class="note-editor-body"
-        :model-value="note.content"
-        :save-image="saveImage"
-        @update:model-value="updateContent"
-        @paste-error="emit('pasteError', $event)"
-      />
+      <div class="note-editor-body">
+        <MarkdownEditor
+          ref="markdownEditor"
+          :key="note.id"
+          class="note-editor-markdown"
+          :model-value="note.content"
+          :save-image="saveImage"
+          @update:model-value="updateContent"
+          @paste-error="emit('pasteError', $event)"
+        />
+      </div>
     </div>
+    <EditorStatusBar :content="note.content" />
   </section>
   <section v-else class="editor-empty-state">
     <p class="editor-empty-eyebrow">MemoBox</p>
@@ -131,7 +135,7 @@ defineExpose({ focusEditor })
 <style scoped lang="scss">
 .note-editor {
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr);
+  grid-template-rows: 56px minmax(0, 1fr) 34px;
   min-block-size: 0;
   block-size: 100%;
 }
@@ -142,6 +146,7 @@ defineExpose({ focusEditor })
   justify-content: space-between;
   gap: var(--space-16);
   padding: 0 var(--space-24);
+  overflow: hidden;
   border-block-end: 1px solid var(--color-divider);
   background: var(--color-surface);
 }
@@ -187,6 +192,13 @@ defineExpose({ focusEditor })
 }
 
 .note-editor-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.note-editor-markdown {
   min-block-size: 0;
 }
 
@@ -195,8 +207,23 @@ defineExpose({ focusEditor })
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto minmax(0, 1fr);
   min-block-size: 0;
+  gap: var(--space-16);
   padding: 30px 44px 0;
   overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .note-editor-header {
+    padding-inline: var(--space-16);
+  }
+
+  .note-editor-location {
+    display: none;
+  }
+
+  .note-editor-content {
+    padding-inline: var(--space-24);
+  }
 }
 
 .editor-empty-state {

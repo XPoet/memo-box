@@ -31,9 +31,14 @@ const updatedLabel = computed(() =>
     :aria-current="selected ? 'page' : undefined"
     @click="emit('select', note.id)"
   >
-    <span class="note-list-item-title">{{ displayTitle }}</span>
+    <span class="note-list-item-title-row">
+      <span class="note-list-item-title">{{ displayTitle }}</span>
+    </span>
     <span class="note-list-item-preview">{{ note.contentPreview || '尚未记录内容' }}</span>
-    <span class="note-list-item-time">{{ updatedLabel }}</span>
+    <span class="note-list-item-meta">
+      <span class="note-list-item-kind">Markdown</span>
+      <span class="note-list-item-time">{{ updatedLabel }}</span>
+    </span>
   </button>
 </template>
 
@@ -42,12 +47,11 @@ const updatedLabel = computed(() =>
   display: grid;
   gap: var(--space-8);
   inline-size: 100%;
-  min-block-size: 88px;
+  min-block-size: 100px;
   padding: 14px;
   overflow: hidden;
-  border: 0 solid var(--color-divider);
-  border-block-end-width: 1px;
-  border-inline-start-width: 3px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-8);
   background: var(--color-surface);
   color: inherit;
   cursor: pointer;
@@ -59,8 +63,24 @@ const updatedLabel = computed(() =>
   background: var(--color-accent-soft);
 }
 
+.note-list-item:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+}
+
 .note-list-item--selected {
-  border-inline-start-color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.note-list-item-title-row,
+.note-list-item-meta {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.note-list-item-meta {
+  justify-content: space-between;
+  gap: var(--space-8);
 }
 
 .note-list-item-title,
@@ -72,18 +92,23 @@ const updatedLabel = computed(() =>
 
 .note-list-item-title {
   color: var(--color-text-primary);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.note-list-item-preview,
-.note-list-item-time {
+.note-list-item-preview {
   color: var(--color-text-secondary);
   font-size: 0.75rem;
+  line-height: 1.5;
 }
 
+.note-list-item-kind,
 .note-list-item-time {
   color: var(--color-text-muted);
   font-size: 0.625rem;
+}
+
+.note-list-item-kind {
+  color: var(--color-accent-active);
 }
 </style>

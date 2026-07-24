@@ -73,14 +73,6 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
       </RouterLink>
       <RouterLink
         class="sidebar-nav-item"
-        :class="{ 'sidebar-nav-item--active': isActive('settings') }"
-        to="/settings"
-      >
-        <el-icon><Setting /></el-icon>
-        <span>设置</span>
-      </RouterLink>
-      <RouterLink
-        class="sidebar-nav-item"
         :class="{ 'sidebar-nav-item--active': isRecentView }"
         :to="{ name: 'workbench', query: { sort: 'updated' } }"
       >
@@ -144,18 +136,27 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
       </div>
       <p v-else class="sidebar-category-empty">暂无分类</p>
     </section>
+
+    <RouterLink
+      class="sidebar-nav-item sidebar-settings-item"
+      :class="{ 'sidebar-nav-item--active': isActive('settings') }"
+      to="/settings"
+    >
+      <el-icon><Setting /></el-icon>
+      <span>设置</span>
+    </RouterLink>
   </div>
 </template>
 
 <style scoped lang="scss">
 .app-sidebar {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 18px;
   block-size: 100%;
   min-block-size: 0;
   padding: 18px 14px;
-  overflow: auto;
+  overflow: hidden;
   background: var(--color-sidebar);
 }
 
@@ -244,6 +245,10 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
 .sidebar-nav-item:hover,
 .sidebar-category-item:hover {
   background: color-mix(in srgb, var(--color-surface) 76%, transparent);
+}
+
+.sidebar-settings-item {
+  align-self: end;
 }
 
 .sidebar-nav-count {

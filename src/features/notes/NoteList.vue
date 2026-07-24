@@ -95,8 +95,9 @@ const visibleNotes = computed(() => {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-12);
-  padding: var(--space-16);
+  padding: var(--space-16) var(--space-16) var(--space-12);
   border-block-end: 1px solid var(--color-divider);
+  background: var(--color-surface);
 }
 
 .note-list-title,
@@ -113,8 +114,9 @@ const visibleNotes = computed(() => {
 
 .note-list-title {
   color: var(--color-text-primary);
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .note-list-count {
@@ -139,6 +141,10 @@ const visibleNotes = computed(() => {
 }
 
 .note-list-items {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  padding: var(--space-8);
   overflow: auto;
 }
 

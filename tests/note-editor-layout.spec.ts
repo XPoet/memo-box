@@ -15,4 +15,9 @@ describe('笔记编辑器布局', () => {
       '.note-title-input :deep(.el-input__inner) {\n  min-inline-size: 0;',
     )
   })
+
+  it('按设计稿保留 56px 工具栏和 34px 文档状态栏', () => {
+    expect(noteEditorSource).toContain('grid-template-rows: 56px minmax(0, 1fr) 34px')
+    expect(noteEditorSource).toContain('<EditorStatusBar :content="note.content" />')
+  })
 })

@@ -74,6 +74,26 @@ describe('AppSidebar', () => {
     expect(hrefs).toContain(router.resolve({ name: 'search' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'settings' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'workbench', query: { category: 'work' } }).href)
+    expect(wrapper.get('.sidebar-settings-item').attributes('href')).toBe(
+      router.resolve({ name: 'settings' }).href,
+    )
+    expect(wrapper.get('.app-sidebar').element.lastElementChild).toBe(
+      wrapper.get('.sidebar-settings-item').element,
+    )
+
+    const settingsNavigation = new Promise<void>((resolve) => {
+      const removeAfterEach = router.afterEach((to) => {
+        if (to.name === 'settings') {
+          removeAfterEach()
+          resolve()
+        }
+      })
+    })
+
+    await wrapper.get('.sidebar-settings-item').trigger('click')
+    await settingsNavigation
+
+    expect(router.currentRoute.value.name).toBe('settings')
   })
 
   it('将新建笔记意图交给路由视图处理', async () => {
