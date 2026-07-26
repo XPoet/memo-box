@@ -1,8 +1,8 @@
 # MemoBox IPC 契约
 
-> 契约版本：V007
-> 最后更新：2026-07-24
-> 生效任务：T02～T10 本地数据、笔记、图片、回收站、分类、标签、全局搜索、Markdown 导出与本地偏好闭环
+> 契约版本：V008
+> 最后更新：2026-07-26
+> 生效任务：T02～T12 本地数据、笔记、图片、回收站、分类、标签、全局搜索、Markdown 导出、本地偏好与发布前加固
 
 ## 1. 通用规则
 
@@ -18,11 +18,10 @@
 
 ### 成功响应：`BootstrapSnapshot`
 
-| 字段            | 类型      | 说明                                                |
-| --------------- | --------- | --------------------------------------------------- |
-| `status`        | `'ready'` | 初始化成功时固定为 `ready`                          |
-| `dataDirectory` | string    | 经系统路径 API 获取的应用数据目录，仅用于设置页展示 |
-| `schemaVersion` | number    | 最后成功执行的 Migration 版本；当前 V003 为 `3`     |
+| 字段            | 类型      | 说明                                            |
+| --------------- | --------- | ----------------------------------------------- |
+| `status`        | `'ready'` | 初始化成功时固定为 `ready`                      |
+| `schemaVersion` | number    | 最后成功执行的 Migration 版本；当前 V003 为 `3` |
 
 ### 失败响应：`BootstrapError`
 
@@ -36,7 +35,9 @@
 1. Command 在阻塞线程执行目录创建、可写性检查、数据库连接和 Migration。
 2. 首次启动创建 `database`、`assets`、`temp`、`logs`、`config` 和 `database/memobox.db`。
 3. 重复启动幂等执行；已成功执行的 Migration 不重复运行。
-4. 任一步失败时前端进入只读诊断页，停止后续写入调用。
+4. 若存在此前正常保存失败而落盘的恢复草稿，启动会在同一数据库事务内恢复标题和正文、删除对应草稿，再重建搜索索引；恢复失败时停止后续写入，绝不丢弃草稿。
+5. 任一步失败时前端进入只读诊断页，停止后续写入调用。
+6. 启动响应不得返回应用数据目录、数据库、资源或日志的绝对路径；设置页只能通过 `open_data_directory` 请求后端受控打开固定目录。
 
 ### 2.1 `show_main_window`
 
@@ -74,7 +75,7 @@
 
 ### `save_note`
 
-请求：`{ id: string, title: string, content: string }`。在一个数据库事务内更新标题、正文和 `updated_at`，成功返回更新后的 `NoteDetail`。标题与正文最大长度由 Rust 限制，前端不可绕过。
+请求：`{ id: string, title: string, content: string }`。在一个数据库事务内更新标题、正文、`updated_at` 和该笔记的全文索引；若该笔记存在恢复草稿则一并删除。成功返回更新后的 `NoteDetail`。标题与正文最大长度由 Rust 限制，前端不可绕过。
 
 ### `cleanup_empty_note`
 
@@ -82,7 +83,7 @@
 
 ### `save_recovery_draft`
 
-请求：`{ id: string, title: string, content: string, failureCode: string }`。仅在正常保存失败后调用，以 UPSERT 方式写入 `recovery_drafts`；失败不会覆盖前端内存草稿。该接口不记录正文到日志。
+请求：`{ id: string, title: string, content: string, failureCode: string }`。仅在正常保存失败后调用，以 UPSERT 方式写入 `recovery_drafts`；失败不会覆盖前端内存草稿。下一次成功启动会以事务恢复该草稿。该接口不记录正文到日志。
 
 ### 笔记错误码
 

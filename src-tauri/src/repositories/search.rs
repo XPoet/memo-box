@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rusqlite::types::Value;
-use rusqlite::{Connection, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 use crate::domain::search::{SearchError, SearchPage, SearchResult};
 
@@ -43,6 +43,31 @@ impl SearchRepository {
                 .execute(params![document.note_id, searchable_text])
                 .map_err(|_| SearchError::IndexRebuild)?;
         }
+        Ok(())
+    }
+
+    pub fn refresh_note_in_transaction(
+        transaction: &Transaction<'_>,
+        note_id: &str,
+    ) -> Result<(), SearchError> {
+        transaction
+            .execute("DELETE FROM notes_fts WHERE note_id = ?1", params![note_id])
+            .map_err(|_| SearchError::IndexRebuild)?;
+        let Some(document) = read_search_document(transaction, note_id)? else {
+            return Ok(());
+        };
+        let searchable_text = tokenize_for_index(&[
+            &document.title,
+            &document.content,
+            &document.category_path,
+            &document.tag_names,
+        ]);
+        transaction
+            .execute(
+                "INSERT INTO notes_fts (note_id, search_text) VALUES (?1, ?2)",
+                params![document.note_id, searchable_text],
+            )
+            .map_err(|_| SearchError::IndexRebuild)?;
         Ok(())
     }
 
@@ -159,6 +184,43 @@ fn read_search_documents(
         })
         .map_err(|_| SearchError::IndexRebuild)?;
     rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|_| SearchError::IndexRebuild)
+}
+
+fn read_search_document(
+    transaction: &Transaction<'_>,
+    note_id: &str,
+) -> Result<Option<SearchDocument>, SearchError> {
+    transaction
+        .query_row(
+            "WITH RECURSIVE category_paths(id, path) AS (
+               SELECT id, name FROM categories WHERE parent_id IS NULL
+               UNION ALL
+               SELECT categories.id, category_paths.path || ' / ' || categories.name
+               FROM categories INNER JOIN category_paths ON categories.parent_id = category_paths.id
+             )
+             SELECT notes.id, notes.title, notes.content, COALESCE(category_paths.path, ''),
+                    COALESCE((
+                      SELECT group_concat(tags.name, ' ')
+                      FROM note_tags
+                      INNER JOIN tags ON tags.id = note_tags.tag_id
+                      WHERE note_tags.note_id = notes.id
+                    ), '')
+             FROM notes
+             LEFT JOIN category_paths ON category_paths.id = notes.category_id
+             WHERE notes.id = ?1 AND notes.is_deleted = 0",
+            params![note_id],
+            |row| {
+                Ok(SearchDocument {
+                    note_id: row.get(0)?,
+                    title: row.get(1)?,
+                    content: row.get(2)?,
+                    category_path: row.get(3)?,
+                    tag_names: row.get(4)?,
+                })
+            },
+        )
+        .optional()
         .map_err(|_| SearchError::IndexRebuild)
 }
 

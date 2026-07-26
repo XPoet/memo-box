@@ -16,13 +16,11 @@ describe('bootstrapApp', () => {
   it('返回原生初始化快照', async () => {
     invoke.mockResolvedValue({
       status: 'ready',
-      dataDirectory: '/safe/application-support/MemoBox',
       schemaVersion: 1,
     })
 
     await expect(bootstrapApp()).resolves.toEqual({
       status: 'ready',
-      dataDirectory: '/safe/application-support/MemoBox',
       schemaVersion: 1,
     })
     expect(invoke).toHaveBeenCalledWith('bootstrap_app')

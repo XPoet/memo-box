@@ -6,7 +6,6 @@ use thiserror::Error;
 #[serde(rename_all = "camelCase")]
 pub struct BootstrapSnapshot {
     pub status: &'static str,
-    pub data_directory: String,
     pub schema_version: u32,
 }
 

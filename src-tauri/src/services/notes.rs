@@ -6,7 +6,6 @@ use uuid::Uuid;
 use crate::database::connection::open_database;
 use crate::domain::notes::{NoteDetail, NoteError, NoteSummary};
 use crate::repositories::notes::NotesRepository;
-use crate::repositories::search::SearchRepository;
 use crate::repositories::settings::SettingsRepository;
 
 const MAX_TITLE_LENGTH: usize = 4_000;
@@ -31,7 +30,6 @@ impl NotesService {
             &Uuid::new_v4().to_string(),
             &current_time()?,
         )?;
-        SearchRepository::rebuild_index(&mut connection).map_err(|_| NoteError::SaveFailed)?;
         Ok(note)
     }
 
@@ -51,7 +49,6 @@ impl NotesService {
         let mut connection =
             open_database(&self.database_path).map_err(|_| NoteError::SaveFailed)?;
         let note = NotesRepository::save(&mut connection, id, title, content, &current_time()?)?;
-        SearchRepository::rebuild_index(&mut connection).map_err(|_| NoteError::SaveFailed)?;
         Ok(note)
     }
 
@@ -65,7 +62,7 @@ impl NotesService {
         let mut connection =
             open_database(&self.database_path).map_err(|_| NoteError::SaveFailed)?;
         NotesRepository::cleanup_empty(&mut connection, id)?;
-        SearchRepository::rebuild_index(&mut connection).map_err(|_| NoteError::SaveFailed)
+        Ok(())
     }
 
     pub fn save_recovery_draft(

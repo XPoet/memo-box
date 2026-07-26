@@ -2,6 +2,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::domain::notes::{NoteDetail, NoteError, NoteSummary};
 use crate::domain::settings::NoteSort;
+use crate::repositories::search::SearchRepository;
 
 pub struct NotesRepository;
 
@@ -19,6 +20,8 @@ impl NotesRepository {
                 "INSERT INTO notes (id, created_at, updated_at) VALUES (?1, ?2, ?2)",
                 params![id, now],
             )
+            .map_err(|_| NoteError::SaveFailed)?;
+        SearchRepository::refresh_note_in_transaction(&transaction, id)
             .map_err(|_| NoteError::SaveFailed)?;
         transaction.commit().map_err(|_| NoteError::SaveFailed)?;
         Self::find_detail(connection, id)
@@ -96,6 +99,14 @@ impl NotesRepository {
         if changed == 0 {
             return Err(NoteError::NotFound);
         }
+        transaction
+            .execute(
+                "DELETE FROM recovery_drafts WHERE note_id = ?1",
+                params![id],
+            )
+            .map_err(|_| NoteError::SaveFailed)?;
+        SearchRepository::refresh_note_in_transaction(&transaction, id)
+            .map_err(|_| NoteError::SaveFailed)?;
         transaction.commit().map_err(|_| NoteError::SaveFailed)?;
         Self::find_detail(connection, id)
     }
@@ -126,7 +137,7 @@ impl NotesRepository {
         let transaction = connection
             .transaction()
             .map_err(|_| NoteError::SaveFailed)?;
-        transaction
+        let deleted = transaction
             .execute(
                 "DELETE FROM notes
                  WHERE id = ?1 AND is_deleted = 0
@@ -135,6 +146,10 @@ impl NotesRepository {
                 params![id],
             )
             .map_err(|_| NoteError::SaveFailed)?;
+        if deleted > 0 {
+            SearchRepository::refresh_note_in_transaction(&transaction, id)
+                .map_err(|_| NoteError::SaveFailed)?;
+        }
         transaction.commit().map_err(|_| NoteError::SaveFailed)
     }
 

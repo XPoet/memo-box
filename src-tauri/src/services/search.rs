@@ -127,8 +127,8 @@ mod tests {
     }
 
     #[test]
-    fn searches_ten_thousand_notes_within_target_duration() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn performance_searches_and_saves_ten_thousand_notes_within_target_duration()
+    -> Result<(), Box<dyn std::error::Error>> {
         let directory = data_directory();
         let database_path = directory.join("database").join("memobox.db");
         BootstrapRepository::initialize(&database_path)?;
@@ -155,10 +155,39 @@ mod tests {
         SearchRepository::rebuild_index(&mut connection)?;
 
         let start = Instant::now();
+        let notes = NotesService::new(&directory).list()?;
+        let list_elapsed = start.elapsed();
+        assert!(list_elapsed < Duration::from_millis(200));
+        assert_eq!(notes.len(), 10_000);
+
+        let start = Instant::now();
         let result = SearchService::new(&directory).search("目标文档", None, None)?;
-        assert!(start.elapsed() < Duration::from_millis(300));
+        let search_elapsed = start.elapsed();
+        assert!(search_elapsed < Duration::from_millis(300));
         assert_eq!(result.total, 1);
         assert_eq!(result.items[0].id, "note-7777");
+
+        let start = Instant::now();
+        NotesService::new(&directory).save(
+            "note-7777",
+            "性能更新",
+            "增量索引不应重建全部笔记。",
+        )?;
+        let save_elapsed = start.elapsed();
+        assert!(save_elapsed < Duration::from_millis(200));
+        assert_eq!(
+            SearchService::new(&directory)
+                .search("性能更新", None, None)?
+                .items[0]
+                .id,
+            "note-7777"
+        );
+        eprintln!(
+            "10,000 条性能夹具：列表 {} ms，搜索 {} ms，单笔记保存 {} ms。",
+            list_elapsed.as_millis(),
+            search_elapsed.as_millis(),
+            save_elapsed.as_millis(),
+        );
         Ok(())
     }
 }

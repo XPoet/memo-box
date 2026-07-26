@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Filter, Search, Sort } from '@element-plus/icons-vue'
-import { computed, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
 import NoteListItem from './NoteListItem.vue'
 import type { NoteSummary } from '@/types/notes'
 
@@ -18,6 +18,11 @@ const emit = defineEmits<{
 }>()
 
 const query = shallowRef('')
+const listItems = useTemplateRef<HTMLDivElement>('listItems')
+const scrollTop = shallowRef(0)
+const viewportHeight = shallowRef(600)
+const itemHeight = 104
+const renderBuffer = 6
 const visibleNotes = computed(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
   if (keyword === '') {
@@ -26,6 +31,38 @@ const visibleNotes = computed(() => {
   return props.notes.filter((note) =>
     `${note.title}\n${note.contentPreview}`.toLocaleLowerCase().includes(keyword),
   )
+})
+const visibleRange = computed(() => {
+  const maximumStart = Math.max(0, visibleNotes.value.length - 1)
+  const start = Math.min(maximumStart, Math.floor(scrollTop.value / itemHeight))
+  const visibleCount = Math.ceil(viewportHeight.value / itemHeight) + renderBuffer * 2
+  return {
+    start: Math.max(0, start - renderBuffer),
+    end: Math.min(visibleNotes.value.length, start + visibleCount),
+  }
+})
+const renderedNotes = computed(() =>
+  visibleNotes.value.slice(visibleRange.value.start, visibleRange.value.end),
+)
+const virtualHeight = computed(() => visibleNotes.value.length * itemHeight)
+const virtualOffset = computed(() => visibleRange.value.start * itemHeight)
+
+function updateVisibleRange(): void {
+  const container = listItems.value
+  if (container === null) {
+    return
+  }
+  scrollTop.value = container.scrollTop
+  viewportHeight.value = Math.max(container.clientHeight, itemHeight)
+}
+
+onMounted(() => {
+  updateVisibleRange()
+  window.addEventListener('resize', updateVisibleRange)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateVisibleRange)
 })
 </script>
 
@@ -71,14 +108,21 @@ const visibleNotes = computed(() => {
       <p class="note-list-empty-title">没有匹配的笔记</p>
       <p class="note-list-empty-copy">换一个关键词，或清空当前搜索。</p>
     </div>
-    <div v-else class="note-list-items">
-      <NoteListItem
-        v-for="note in visibleNotes"
-        :key="note.id"
-        :note="note"
-        :selected="note.id === selectedId"
-        @select="emit('select', $event)"
-      />
+    <div v-else ref="listItems" class="note-list-items" @scroll="updateVisibleRange">
+      <div class="note-list-virtual-spacer" :style="{ height: `${virtualHeight}px` }">
+        <div
+          class="note-list-virtual-window"
+          :style="{ transform: `translateY(${virtualOffset}px)` }"
+        >
+          <NoteListItem
+            v-for="note in renderedNotes"
+            :key="note.id"
+            :note="note"
+            :selected="note.id === selectedId"
+            @select="emit('select', $event)"
+          />
+        </div>
+      </div>
     </div>
   </section>
 </template>
@@ -141,11 +185,21 @@ const visibleNotes = computed(() => {
 }
 
 .note-list-items {
-  display: grid;
-  align-content: start;
-  gap: var(--space-4);
   padding: var(--space-8);
   overflow: auto;
+}
+
+.note-list-virtual-spacer {
+  position: relative;
+  min-block-size: 100%;
+}
+
+.note-list-virtual-window {
+  position: absolute;
+  inset-inline: 0;
+  display: grid;
+  gap: var(--space-4);
+  will-change: transform;
 }
 
 .note-list-empty {

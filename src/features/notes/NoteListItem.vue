@@ -47,7 +47,7 @@ const updatedLabel = computed(() =>
   display: grid;
   gap: var(--space-8);
   inline-size: 100%;
-  min-block-size: 100px;
+  block-size: 100px;
   padding: 14px;
   overflow: hidden;
   border: 1px solid transparent;

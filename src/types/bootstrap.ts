@@ -2,7 +2,6 @@ export type BootstrapStatus = 'ready'
 
 export interface BootstrapSnapshot {
   status: BootstrapStatus
-  dataDirectory: string
   schemaVersion: number
 }
 
