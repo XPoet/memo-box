@@ -308,12 +308,11 @@ memo-box/
 - 数据库测试使用临时 SQLite。
 - 文件测试使用临时目录。
 - 缺陷修复应增加回归测试。
-- macOS 和 Windows 均执行前端检查、Rust 检查和 Tauri 构建。
+- macOS 执行前端检查、Rust 检查和 Tauri 构建。
 
 发布目标：
 
-- macOS：DMG，正式发布需要签名和 Apple 公证。
-- Windows：NSIS 安装程序，使用 MSVC 工具链。
+- macOS：自用阶段生成未签名 DMG；未来对外分发时再完成签名和 Apple 公证。
 
 ## 12. 最终技术决策
 
