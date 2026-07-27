@@ -137,13 +137,19 @@ pnpm exec tauri build --debug
 
 该命令用于开发阶段验证当前平台的原生编译和打包链路。
 
-### 发行构建
+### macOS 自用 DMG
 
 ```bash
-pnpm tauri:build
+pnpm check
+pnpm exec tauri build --bundles dmg --no-sign
+shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg
 ```
 
-构建配置会先运行 `pnpm build`，再生成当前平台的 Tauri 发行产物。正式发布前仍需完成签名、公证、安装验收和版本核对；这些发布操作不应自动执行。
+构建配置会先运行 `pnpm build`，再生成当前 Mac 的发行产物。`--no-sign` 明确跳过 Developer 签名；自用 DMG 位于 `src-tauri/target/release/bundle/dmg/`。双击 DMG，将 `MemoBox.app` 拖入“应用程序”文件夹后即可安装。
+
+当前自用版本不签名、不公证，也不上传 App Store。若 macOS 对从外部位置复制的未签名应用显示 Gatekeeper 提示，在 Finder 中按住 Control 点按 `MemoBox.app`，选择“打开”并再次确认；不要通过关闭系统安全机制绕过提示。
+
+首次安装后，应在断网状态完成新建、编辑、文本和图片粘贴、分类、标签、搜索、回收站、导出、设置、目录选择、窗口恢复与单实例的本机验收。保留上述 `shasum` 输出，便于确认后续安装的文件未被替换。
 
 ## 目录说明
 
