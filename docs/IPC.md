@@ -61,13 +61,14 @@
 
 无参数。读取本地 `note_sort` 设置后返回未删除笔记的 `NoteSummary[]`；`is_pinned DESC` 始终优先，再按设置映射的 `updated_at DESC`、`created_at DESC` 或 `title COLLATE NOCASE ASC`、`id DESC` 排序。前端不得传入排序字段或 SQL。
 
-| 字段             | 类型   | 说明                                   |
-| ---------------- | ------ | -------------------------------------- |
-| `id`             | string | 笔记 UUID                              |
-| `title`          | string | 原始标题；空标题由前端展示层回退       |
-| `contentPreview` | string | 正文归一化后的前 160 个字符，不含 HTML |
-| `createdAt`      | string | UTC RFC 3339                           |
-| `updatedAt`      | string | UTC RFC 3339                           |
+| 字段             | 类型    | 说明                                   |
+| ---------------- | ------- | -------------------------------------- |
+| `id`             | string  | 笔记 UUID                              |
+| `title`          | string  | 原始标题；空标题由前端展示层回退       |
+| `contentPreview` | string  | 正文归一化后的前 160 个字符，不含 HTML |
+| `isPinned`       | boolean | 是否置顶；用于列表项展示置顶标识       |
+| `createdAt`      | string  | UTC RFC 3339                           |
+| `updatedAt`      | string  | UTC RFC 3339                           |
 
 ### `get_note`
 

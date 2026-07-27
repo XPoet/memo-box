@@ -23,7 +23,7 @@ const label = computed(() => {
 .save-status {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: 0.6rem;
 }
 
 .save-status--failed {
@@ -31,6 +31,6 @@ const label = computed(() => {
 }
 
 .save-status--saved {
-  color: var(--color-accent);
+  color: var(--el-color-success);
 }
 </style>

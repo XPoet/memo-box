@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Filter, Search, Sort } from '@element-plus/icons-vue'
+import type { ScrollbarInstance } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
 import NoteListItem from './NoteListItem.vue'
 import type { NoteSummary } from '@/types/notes'
@@ -18,7 +19,7 @@ const emit = defineEmits<{
 }>()
 
 const query = shallowRef('')
-const listItems = useTemplateRef<HTMLDivElement>('listItems')
+const listItems = useTemplateRef<ScrollbarInstance>('listItems')
 const scrollTop = shallowRef(0)
 const viewportHeight = shallowRef(600)
 const itemHeight = 104
@@ -48,8 +49,8 @@ const virtualHeight = computed(() => visibleNotes.value.length * itemHeight)
 const virtualOffset = computed(() => visibleRange.value.start * itemHeight)
 
 function updateVisibleRange(): void {
-  const container = listItems.value
-  if (container === null) {
+  const container = listItems.value?.wrapRef
+  if (container === undefined) {
     return
   }
   scrollTop.value = container.scrollTop
@@ -73,20 +74,7 @@ onBeforeUnmount(() => {
         <h1 class="note-list-title">全部笔记</h1>
         <span class="note-list-count">{{ notes.length }}</span>
       </div>
-      <div class="note-list-actions" aria-label="列表工具">
-        <el-button text circle disabled aria-label="筛选笔记">
-          <el-icon><Filter /></el-icon>
-        </el-button>
-        <el-button text circle disabled aria-label="排序笔记">
-          <el-icon><Sort /></el-icon>
-        </el-button>
-      </div>
-      <el-input
-        v-model="query"
-        class="note-list-search"
-        placeholder="搜索笔记"
-        aria-label="搜索笔记"
-      >
+      <el-input v-model="query" class="note-list-search" placeholder="搜索笔记">
         <template #prefix>
           <el-icon><Search /></el-icon>
         </template>
@@ -108,7 +96,7 @@ onBeforeUnmount(() => {
       <p class="note-list-empty-title">没有匹配的笔记</p>
       <p class="note-list-empty-copy">换一个关键词，或清空当前搜索。</p>
     </div>
-    <div v-else ref="listItems" class="note-list-items" @scroll="updateVisibleRange">
+    <el-scrollbar v-else ref="listItems" class="note-list-items" @scroll="updateVisibleRange">
       <div class="note-list-virtual-spacer" :style="{ height: `${virtualHeight}px` }">
         <div
           class="note-list-virtual-window"
@@ -123,7 +111,7 @@ onBeforeUnmount(() => {
           />
         </div>
       </div>
-    </div>
+    </el-scrollbar>
   </section>
 </template>
 
@@ -150,8 +138,7 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-.note-list-heading,
-.note-list-actions {
+.note-list-heading {
   display: flex;
   align-items: center;
 }
@@ -170,10 +157,6 @@ onBeforeUnmount(() => {
   font-size: 0.6875rem;
 }
 
-.note-list-actions {
-  gap: 2px;
-}
-
 .note-list-search {
   grid-column: 1 / -1;
 }
@@ -181,12 +164,15 @@ onBeforeUnmount(() => {
 .note-list-search :deep(.el-input__wrapper) {
   min-block-size: 38px;
   background: var(--color-canvas);
-  box-shadow: 0 0 0 1px var(--color-border) inset;
 }
 
 .note-list-items {
+  min-block-size: 0;
+}
+
+.note-list-items :deep(.el-scrollbar__view) {
+  min-block-size: 100%;
   padding: var(--space-8);
-  overflow: auto;
 }
 
 .note-list-virtual-spacer {

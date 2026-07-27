@@ -208,8 +208,7 @@ onMounted(() => {
     @create="createNoteFromSidebar"
   >
     <template #action>
-      <el-button type="primary" :loading="isSubmitting" @click="addCategory()">
-        <el-icon><Plus /></el-icon>
+      <el-button type="primary" :icon="Plus" :loading="isSubmitting" @click="addCategory()">
         新建分类
       </el-button>
     </template>
@@ -229,7 +228,7 @@ onMounted(() => {
         <el-icon><WarningFilled /></el-icon>
         调整分类后，系统会校验五级限制、同级名称和循环引用。
       </p>
-      <section class="category-workspace" aria-label="分类工作区">
+      <section class="category-workspace">
         <section class="category-tree-panel">
           <header class="category-panel-header">
             <div>
@@ -238,28 +237,29 @@ onMounted(() => {
             </div>
             <span class="category-panel-count">{{ categoriesStore.categories.length }}</span>
           </header>
-          <el-tree
-            class="category-tree"
-            :data="categoriesStore.categories"
-            node-key="id"
-            draggable
-            default-expand-all
-            :expand-on-click-node="false"
-            :allow-drop="allowDrop"
-            @node-click="selectedCategory = $event"
-            @node-drop="handleDrop"
-          >
-            <template #default="{ data }">
-              <div class="category-tree-node">
-                <el-icon><Folder /></el-icon>
-                <span class="category-tree-name">{{ data.name }}</span>
-                <small class="category-tree-count">{{ data.noteCount }}</small>
-              </div>
-            </template>
-          </el-tree>
+          <el-scrollbar class="category-tree">
+            <el-tree
+              :data="categoriesStore.categories"
+              node-key="id"
+              draggable
+              default-expand-all
+              :expand-on-click-node="false"
+              :allow-drop="allowDrop"
+              @node-click="selectedCategory = $event"
+              @node-drop="handleDrop"
+            >
+              <template #default="{ data }">
+                <div class="category-tree-node">
+                  <el-icon><Folder /></el-icon>
+                  <span class="category-tree-name">{{ data.name }}</span>
+                  <small class="category-tree-count">{{ data.noteCount }}</small>
+                </div>
+              </template>
+            </el-tree>
+          </el-scrollbar>
         </section>
 
-        <section class="category-detail-panel" aria-label="分类详情">
+        <section class="category-detail-panel">
           <template v-if="selectedCategory">
             <p class="category-detail-eyebrow">当前分类</p>
             <h2 class="category-detail-title">{{ selectedCategory.name }}</h2>
@@ -275,23 +275,20 @@ onMounted(() => {
               </div>
             </dl>
             <div class="category-detail-actions">
-              <el-button type="primary" @click="viewNotes(selectedCategory)">
-                <el-icon><View /></el-icon>
+              <el-button type="primary" :icon="View" @click="viewNotes(selectedCategory)">
                 查看笔记
               </el-button>
-              <el-button @click="openExport(selectedCategory)">
-                <el-icon><Download /></el-icon>
+              <el-button :icon="Download" @click="openExport(selectedCategory)">
                 导出 Markdown
               </el-button>
               <el-button
                 :disabled="isSubmitting || selectedCategory.level >= 5"
+                :icon="Plus"
                 @click="addCategory(selectedCategory)"
               >
-                <el-icon><Plus /></el-icon>
                 新建子分类
               </el-button>
-              <el-button :disabled="isSubmitting" @click="rename(selectedCategory)">
-                <el-icon><EditPen /></el-icon>
+              <el-button :disabled="isSubmitting" :icon="EditPen" @click="rename(selectedCategory)">
                 重命名
               </el-button>
             </div>
@@ -304,9 +301,9 @@ onMounted(() => {
                 type="danger"
                 plain
                 :disabled="isSubmitting"
+                :icon="Delete"
                 @click="remove(selectedCategory)"
               >
-                <el-icon><Delete /></el-icon>
                 删除分类
               </el-button>
             </div>
@@ -419,9 +416,11 @@ onMounted(() => {
 
 .category-tree {
   min-block-size: 0;
-  padding: var(--space-8);
-  overflow: auto;
   background: transparent;
+}
+
+.category-tree :deep(.el-scrollbar__view) {
+  padding: var(--space-8);
 }
 
 .category-tree :deep(.el-tree) {

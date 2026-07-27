@@ -32,7 +32,7 @@ impl NotesRepository {
         note_sort: NoteSort,
     ) -> Result<Vec<NoteSummary>, NoteError> {
         let sql = format!(
-            "SELECT id, title, content, created_at, updated_at
+            "SELECT id, title, content, is_pinned, created_at, updated_at
              FROM notes WHERE is_deleted = 0
              ORDER BY is_pinned DESC, {}",
             note_sort.order_by_sql()
@@ -47,8 +47,9 @@ impl NotesRepository {
                     id: row.get(0)?,
                     title: row.get(1)?,
                     content_preview: content_preview(&content),
-                    created_at: row.get(3)?,
-                    updated_at: row.get(4)?,
+                    is_pinned: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
                 })
             })
             .map_err(|_| NoteError::ListFailed)?;

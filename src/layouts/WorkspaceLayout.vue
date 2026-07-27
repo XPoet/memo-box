@@ -15,7 +15,7 @@ const emit = defineEmits<{
 
 <template>
   <main class="workspace-layout">
-    <aside class="sidebar" aria-label="主导航">
+    <aside class="sidebar">
       <AppSidebar
         :categories="categories"
         :tag-count="tagCount"
@@ -23,10 +23,10 @@ const emit = defineEmits<{
         @create="emit('create')"
       />
     </aside>
-    <section class="note-list-panel" aria-label="笔记列表">
+    <section class="note-list-panel">
       <slot name="list" />
     </section>
-    <section class="editor-panel" aria-label="笔记编辑器">
+    <section class="editor-panel">
       <slot name="editor" />
     </section>
   </main>

@@ -6,12 +6,28 @@ const elementPlusStylePath = resolve(process.cwd(), 'src/styles/_element-plus.sc
 const elementPlusStyles = readFileSync(elementPlusStylePath, 'utf8')
 const entryPath = resolve(process.cwd(), 'src/main.ts')
 const entrySource = readFileSync(entryPath, 'utf8')
+const elementThemePath = resolve(process.cwd(), 'src/styles/element/index.scss')
+const elementThemeSource = readFileSync(elementThemePath, 'utf8')
+const viteConfigPath = resolve(process.cwd(), 'vite.config.ts')
+const viteConfigSource = readFileSync(viteConfigPath, 'utf8')
 
 describe('Element Plus 编程式服务样式', () => {
-  it('加载确认框和提示消息的按需样式，并提供可见的遮罩与输入框样式', () => {
-    expect(entrySource).toContain("import 'element-plus/es/components/message-box/style/css'")
-    expect(entrySource).toContain("import 'element-plus/es/components/message/style/css'")
+  it('加载确认框和提示消息的按需 Sass 样式，并提供可见的遮罩与输入框样式', () => {
+    expect(entrySource).toContain("import 'element-plus/es/components/message-box/style/index'")
+    expect(entrySource).toContain("import 'element-plus/es/components/message/style/index'")
     expect(elementPlusStyles).toContain('.el-overlay-message-box')
     expect(elementPlusStyles).toContain('.el-message-box__input .el-input__wrapper')
+  })
+
+  it('通过 Sass 变量生成 Element Plus 主题样式', () => {
+    expect(elementThemeSource).toContain(
+      "@forward 'element-plus/theme-chalk/src/common/var.scss' with",
+    )
+    expect(elementThemeSource).toContain("'primary':")
+    expect(elementThemeSource).toContain('$font-family:')
+    expect(viteConfigSource).toContain("importStyle: 'sass'")
+    expect(viteConfigSource).toContain(
+      'additionalData: \'@use "@/styles/element/index.scss" as *;\'',
+    )
   })
 })

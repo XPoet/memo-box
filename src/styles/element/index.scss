@@ -1,0 +1,19 @@
+@forward 'element-plus/theme-chalk/src/common/var.scss' with (
+  $colors: (
+    'primary': (
+      'base': #d97757,
+    ),
+    'danger': (
+      'base': #c65d5d,
+    ),
+  ),
+  $border-radius: (
+    'base': 8px,
+  ),
+  $font-size: (
+    'base': 15px,
+  ),
+  $font-family: (
+    '': "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  )
+);

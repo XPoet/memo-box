@@ -52,7 +52,7 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
 </script>
 
 <template>
-  <section class="settings-panel" aria-label="本地偏好">
+  <section class="settings-panel">
     <article class="settings-group">
       <header>
         <el-icon><Setting /></el-icon>
@@ -63,14 +63,14 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
       </header>
       <label class="settings-row"
         ><span><strong>主题</strong><small>选择界面颜色模式。</small></span
-        ><el-select v-model="theme" :disabled="isSaving" aria-label="主题"
+        ><el-select v-model="theme" :disabled="isSaving"
           ><el-option label="跟随系统" value="system" /><el-option
             label="浅色"
             value="light" /><el-option label="深色" value="dark" /></el-select
       ></label>
       <label class="settings-row"
         ><span><strong>默认排序</strong><small>置顶笔记始终优先显示。</small></span
-        ><el-select v-model="noteSort" :disabled="isSaving" aria-label="笔记默认排序"
+        ><el-select v-model="noteSort" :disabled="isSaving"
           ><el-option label="最近编辑" value="updatedAt" /><el-option
             label="创建时间"
             value="createdAt" /><el-option label="标题" value="title" /></el-select
@@ -80,7 +80,6 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
         ><el-select
           :model-value="editorFontSize"
           :disabled="isSaving"
-          aria-label="编辑器字体大小"
           @update:model-value="updateEditorFontSize"
           ><el-option
             v-for="size in [14, 15, 16, 17, 18]"
@@ -90,7 +89,7 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
       ></label>
       <label class="settings-row"
         ><span><strong>显示分类笔记数量</strong><small>控制侧栏分类树中的统计数字。</small></span
-        ><el-switch v-model="showCategoryCounts" :disabled="isSaving" aria-label="显示分类笔记数量"
+        ><el-switch v-model="showCategoryCounts" :disabled="isSaving"
       /></label>
     </article>
 

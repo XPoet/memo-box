@@ -118,9 +118,9 @@ onMounted(() => {
         type="danger"
         plain
         :disabled="trashStore.notes.length === 0 || isSubmitting"
+        :icon="Delete"
         @click="clearTrash"
       >
-        <el-icon><Delete /></el-icon>
         清空回收站
       </el-button>
     </template>
@@ -132,14 +132,13 @@ onMounted(() => {
       <el-icon><Delete /></el-icon>
       <h2>回收站为空</h2>
       <p>删除的笔记会出现在这里，并且可在永久删除前恢复。</p>
-      <RouterLink class="trash-empty-link" to="/">返回全部笔记</RouterLink>
     </section>
     <template v-else>
       <p class="trash-notice" role="note">
         <el-icon><WarningFilled /></el-icon>
         永久删除后无法恢复；关联资源会在没有任何笔记引用时清理。
       </p>
-      <section class="trash-list" aria-label="已删除笔记">
+      <section class="trash-list">
         <article v-for="note in trashStore.notes" :key="note.id" class="trash-item">
           <div class="trash-note-content">
             <h2 class="trash-title">{{ titleOf(note.title, note.contentPreview) }}</h2>
@@ -152,17 +151,16 @@ onMounted(() => {
             </p>
           </div>
           <div class="trash-actions">
-            <el-button :loading="isSubmitting" @click="restore(note.id)">
-              <el-icon><RefreshLeft /></el-icon>
+            <el-button :loading="isSubmitting" :icon="RefreshLeft" @click="restore(note.id)">
               恢复
             </el-button>
             <el-button
               type="danger"
               plain
               :loading="isSubmitting"
+              :icon="Delete"
               @click="permanentlyDelete(note.id)"
             >
-              <el-icon><Delete /></el-icon>
               永久删除
             </el-button>
           </div>
@@ -222,13 +220,6 @@ onMounted(() => {
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
   line-height: 1.55;
-}
-
-.trash-empty-link {
-  color: var(--color-accent-active);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-decoration: none;
 }
 
 .trash-notice {

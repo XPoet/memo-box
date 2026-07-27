@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import SaveStatus from './SaveStatus.vue'
+import type { SaveStatus as SaveStatusType } from '@/stores/notes'
 
 const props = defineProps<{
   content: string
+  saveStatus: SaveStatusType
+  saveError?: string
+}>()
+
+const emit = defineEmits<{
+  retry: []
 }>()
 
 const wordCount = computed(() => countWords(props.content))
@@ -21,19 +29,25 @@ function countWords(content: string): number {
 </script>
 
 <template>
-  <footer class="editor-status-bar" aria-label="文档统计">
+  <footer class="editor-status-bar">
     <div class="editor-status-bar__statistics">
       <span>字数 {{ wordCount }}</span>
       <span>字符 {{ characterCount }}</span>
       <span>行 {{ lineCount }}</span>
     </div>
-    <span class="editor-status-bar__language">Markdown</span>
+    <div class="editor-status-bar__save-state">
+      <SaveStatus :status="saveStatus" :message="saveError" />
+      <el-button v-if="saveStatus === 'failed'" text type="primary" @click="emit('retry')">
+        重试
+      </el-button>
+    </div>
   </footer>
 </template>
 
 <style scoped lang="scss">
 .editor-status-bar,
-.editor-status-bar__statistics {
+.editor-status-bar__statistics,
+.editor-status-bar__save-state {
   display: flex;
   align-items: center;
 }
@@ -58,8 +72,8 @@ function countWords(content: string): number {
   white-space: nowrap;
 }
 
-.editor-status-bar__language {
+.editor-status-bar__save-state {
   flex: 0 0 auto;
-  color: var(--color-text-secondary);
+  gap: var(--space-8);
 }
 </style>

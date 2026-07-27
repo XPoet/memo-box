@@ -2,6 +2,7 @@ export interface NoteSummary {
   id: string
   title: string
   contentPreview: string
+  isPinned: boolean
   createdAt: string
   updatedAt: string
 }

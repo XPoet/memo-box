@@ -7,14 +7,21 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { codeInspectorPlugin } from 'code-inspector-plugin'
 
 export default defineConfig({
+  css: {
+    preprocessorOptions: {
+      scss: {
+        additionalData: '@use "@/styles/element/index.scss" as *;',
+      },
+    },
+  },
   plugins: [
     vue(),
     AutoImport({
       dts: false,
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver({ importStyle: 'sass' })],
     }),
     Components({
-      resolvers: [ElementPlusResolver()],
+      resolvers: [ElementPlusResolver({ importStyle: 'sass' })],
     }),
     codeInspectorPlugin({
       bundler: 'vite',

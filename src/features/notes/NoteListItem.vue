@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { StarFilled } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import type { NoteSummary } from '@/types/notes'
 
@@ -33,6 +34,9 @@ const updatedLabel = computed(() =>
   >
     <span class="note-list-item-title-row">
       <span class="note-list-item-title">{{ displayTitle }}</span>
+      <el-icon v-if="note.isPinned" class="note-list-item-pin">
+        <StarFilled />
+      </el-icon>
     </span>
     <span class="note-list-item-preview">{{ note.contentPreview || '尚未记录内容' }}</span>
     <span class="note-list-item-meta">
@@ -83,6 +87,10 @@ const updatedLabel = computed(() =>
   gap: var(--space-8);
 }
 
+.note-list-item-title-row {
+  gap: var(--space-8);
+}
+
 .note-list-item-title,
 .note-list-item-preview {
   overflow: hidden;
@@ -91,9 +99,17 @@ const updatedLabel = computed(() =>
 }
 
 .note-list-item-title {
+  min-inline-size: 0;
+  flex: 1 1 auto;
   color: var(--color-text-primary);
   font-size: 0.8125rem;
   font-weight: 600;
+}
+
+.note-list-item-pin {
+  flex: 0 0 auto;
+  color: var(--color-accent);
+  font-size: 0.875rem;
 }
 
 .note-list-item-preview {

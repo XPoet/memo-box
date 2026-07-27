@@ -80,7 +80,7 @@ function retry(): void {
       class="export-config"
     >
       <p class="export-copy">选择导出范围后，再从系统目录选择器中指定存放位置。</p>
-      <div class="export-scope-list" aria-label="导出范围">
+      <div class="export-scope-list">
         <ExportScopeOption
           v-for="option in scopeOptions"
           :key="`${option.scope.kind}:${option.scope.id}`"
@@ -129,15 +129,21 @@ function retry(): void {
         {{ exportStore.result?.exportedCount ?? 0 }} 篇，失败
         {{ exportStore.result?.failedCount ?? 0 }} 篇。
       </p>
-      <ul v-if="exportStore.result?.issues.length" class="export-issues" aria-label="导出问题">
-        <li
-          v-for="issue in exportStore.result.issues"
-          :key="`${issue.code}:${issue.noteId ?? issue.title}`"
-        >
-          <strong>{{ issue.title }}</strong
-          >：{{ issue.message }}
-        </li>
-      </ul>
+      <el-scrollbar
+        v-if="exportStore.result?.issues.length"
+        class="export-issues"
+        max-height="180px"
+      >
+        <ul class="export-issues-list">
+          <li
+            v-for="issue in exportStore.result.issues"
+            :key="`${issue.code}:${issue.noteId ?? issue.title}`"
+          >
+            <strong>{{ issue.title }}</strong
+            >：{{ issue.message }}
+          </li>
+        </ul>
+      </el-scrollbar>
       <p v-if="exportStore.error" class="export-error" role="alert">
         {{ exportStore.error.message }}
       </p>
@@ -234,18 +240,19 @@ function retry(): void {
 }
 
 .export-issues {
-  display: grid;
-  gap: var(--space-8);
-  max-block-size: 180px;
-  margin: 0;
-  padding: var(--space-12) var(--space-16);
-  overflow: auto;
   border: 1px solid color-mix(in srgb, #b8892d 36%, var(--color-border));
   border-radius: var(--radius-8);
   background: color-mix(in srgb, #b8892d 8%, var(--color-surface));
   color: var(--color-text-secondary);
   font-size: 0.75rem;
   line-height: 1.5;
+}
+
+.export-issues-list {
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
 }
 
 .export-error {

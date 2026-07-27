@@ -18,7 +18,6 @@ const tagsStore = useTagsStore()
 const router = useRouter()
 const query = shallowRef('')
 const isSubmitting = shallowRef(false)
-const selectedTagIds = shallowRef<string[]>([])
 const exportTag = shallowRef<TagSummary>()
 const isExportDialogVisible = shallowRef(false)
 const exportScopeOptions = computed<ExportScopeOption[]>(() => {
@@ -114,7 +113,6 @@ async function remove(tag: TagSummary): Promise<void> {
   try {
     await deleteTag(tag.id)
     ElMessage.success('标签已删除。')
-    selectedTagIds.value = selectedTagIds.value.filter((id) => id !== tag.id)
     await tagsStore.load()
   } finally {
     isSubmitting.value = false
@@ -128,12 +126,6 @@ function viewNotes(tag: TagSummary): void {
 function openExport(tag: TagSummary): void {
   exportTag.value = tag
   isExportDialogVisible.value = true
-}
-
-function viewSelectedNotes(): void {
-  if (selectedTagIds.value.length > 0) {
-    void router.push({ name: 'workbench', query: { tags: selectedTagIds.value.join(',') } })
-  }
 }
 
 function createNoteFromSidebar(): void {
@@ -155,8 +147,7 @@ onMounted(() => {
     @create="createNoteFromSidebar"
   >
     <template #action>
-      <el-button type="primary" :loading="isSubmitting" @click="promptAddTag">
-        <el-icon><Plus /></el-icon>
+      <el-button type="primary" :icon="Plus" :loading="isSubmitting" @click="promptAddTag">
         新建标签
       </el-button>
     </template>
@@ -165,22 +156,19 @@ onMounted(() => {
       {{ tagsStore.error.message }}
     </p>
     <template v-else>
-      <section class="tag-stats" aria-label="标签统计">
+      <section class="tag-stats">
         <article v-for="stat in tagStats" :key="stat.label" class="tag-stat-card">
           <p>{{ stat.label }}</p>
           <strong>{{ stat.value }}</strong>
         </article>
       </section>
 
-      <section class="tag-toolbar" aria-label="标签工具">
-        <el-input v-model="query" class="tag-search" placeholder="搜索标签" aria-label="搜索标签">
+      <section class="tag-toolbar">
+        <el-input v-model="query" class="tag-search" placeholder="搜索标签">
           <template #prefix>
             <el-icon><Search /></el-icon>
           </template>
         </el-input>
-        <el-button :disabled="selectedTagIds.length === 0" @click="viewSelectedNotes">
-          查看已选笔记
-        </el-button>
       </section>
 
       <el-empty
@@ -188,18 +176,8 @@ onMounted(() => {
         class="tag-empty"
         :description="query.trim() === '' ? '还没有标签' : '暂无匹配标签'"
       />
-      <el-checkbox-group
-        v-else
-        v-model="selectedTagIds"
-        class="tag-table-wrap"
-        aria-label="标签列表"
-      >
+      <el-scrollbar v-else class="tag-table-wrap">
         <el-table :data="visibleTags" class="tag-table">
-          <el-table-column label="选择" width="72">
-            <template #default="{ row }">
-              <el-checkbox :value="row.id" :aria-label="`选择标签 ${row.name}`" />
-            </template>
-          </el-table-column>
           <el-table-column label="标签" min-width="220">
             <template #default="{ row }">
               <span class="tag-name"><i aria-hidden="true"></i>{{ row.name }}</span>
@@ -213,16 +191,17 @@ onMounted(() => {
           <el-table-column label="操作" min-width="260" align="right">
             <template #default="{ row }">
               <div class="tag-row-actions">
-                <el-button text size="small" @click="viewNotes(row)">
-                  <el-icon><View /></el-icon>
-                  查看
-                </el-button>
-                <el-button text size="small" @click="openExport(row)">
-                  <el-icon><Download /></el-icon>
+                <el-button text size="small" :icon="View" @click="viewNotes(row)"> 查看 </el-button>
+                <el-button text size="small" :icon="Download" @click="openExport(row)">
                   导出
                 </el-button>
-                <el-button text size="small" :disabled="isSubmitting" @click="rename(row)">
-                  <el-icon><EditPen /></el-icon>
+                <el-button
+                  text
+                  size="small"
+                  :disabled="isSubmitting"
+                  :icon="EditPen"
+                  @click="rename(row)"
+                >
                   重命名
                 </el-button>
                 <el-button
@@ -230,16 +209,16 @@ onMounted(() => {
                   type="danger"
                   size="small"
                   :disabled="isSubmitting"
+                  :icon="Delete"
                   @click="remove(row)"
                 >
-                  <el-icon><Delete /></el-icon>
                   删除
                 </el-button>
               </div>
             </template>
           </el-table-column>
         </el-table>
-      </el-checkbox-group>
+      </el-scrollbar>
     </template>
   </ManagementLayout>
   <ExportDialog v-model="isExportDialogVisible" :scope-options="exportScopeOptions" />
@@ -296,7 +275,6 @@ onMounted(() => {
 .tag-search :deep(.el-input__wrapper) {
   min-block-size: 38px;
   background: var(--color-surface);
-  box-shadow: 0 0 0 1px var(--color-border) inset;
 }
 
 .tag-empty,
@@ -311,8 +289,7 @@ onMounted(() => {
 }
 
 .tag-table-wrap {
-  display: block;
-  overflow: auto;
+  min-block-size: 0;
 }
 
 .tag-table {

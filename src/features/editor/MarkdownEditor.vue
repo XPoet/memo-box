@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="editorHost" class="markdown-editor" aria-label="Markdown 源码编辑器"></div>
+  <div ref="editorHost" class="markdown-editor"></div>
 </template>
 
 <style scoped lang="scss">

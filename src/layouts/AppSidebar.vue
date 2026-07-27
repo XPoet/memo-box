@@ -1,14 +1,5 @@
 <script setup lang="ts">
-import {
-  Clock,
-  Delete,
-  Document,
-  Folder,
-  Plus,
-  PriceTag,
-  Search,
-  Setting,
-} from '@element-plus/icons-vue'
+import { Delete, Document, Folder, Plus, PriceTag, Search, Setting } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { CategoryNode } from '@/types/categories'
@@ -27,10 +18,6 @@ const emit = defineEmits<{
 const route = useRoute()
 const activeRouteName = computed(() => route.name)
 const visibleCategories = computed(() => flattenCategories(props.categories))
-const isRecentView = computed(
-  () => activeRouteName.value === 'workbench' && route.query.sort === 'updated',
-)
-
 function isActive(
   name: 'workbench' | 'categories' | 'tags' | 'trash' | 'search' | 'settings',
 ): boolean {
@@ -49,35 +36,25 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
 <template>
   <div class="app-sidebar">
     <div class="sidebar-brand-group">
-      <RouterLink class="sidebar-brand" to="/" aria-label="返回全部笔记">
+      <RouterLink class="sidebar-brand" to="/">
         <span class="sidebar-brand-mark" aria-hidden="true">M</span>
         <span>
           <strong class="sidebar-brand-name">MemoBox</strong>
-          <small class="sidebar-brand-copy">本地 Markdown 笔记</small>
         </span>
       </RouterLink>
-      <el-button class="sidebar-create-button" type="primary" @click="emit('create')">
-        <el-icon><Plus /></el-icon>
+      <el-button class="sidebar-create-button" :icon="Plus" type="primary" @click="emit('create')">
         新建笔记
       </el-button>
     </div>
 
-    <nav class="sidebar-nav" aria-label="主导航">
+    <nav class="sidebar-nav">
       <RouterLink
         class="sidebar-nav-item"
-        :class="{ 'sidebar-nav-item--active': isActive('workbench') && !isRecentView }"
+        :class="{ 'sidebar-nav-item--active': isActive('workbench') }"
         to="/"
       >
         <el-icon><Document /></el-icon>
         <span>全部笔记</span>
-      </RouterLink>
-      <RouterLink
-        class="sidebar-nav-item"
-        :class="{ 'sidebar-nav-item--active': isRecentView }"
-        :to="{ name: 'workbench', query: { sort: 'updated' } }"
-      >
-        <el-icon><Clock /></el-icon>
-        <span>最近编辑</span>
       </RouterLink>
       <RouterLink
         class="sidebar-nav-item"
@@ -94,7 +71,6 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
       >
         <el-icon><PriceTag /></el-icon>
         <span>标签</span>
-        <small v-if="tagCount !== undefined" class="sidebar-nav-count">{{ tagCount }}</small>
       </RouterLink>
       <RouterLink
         class="sidebar-nav-item"
@@ -107,19 +83,18 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
       </RouterLink>
     </nav>
 
-    <section class="sidebar-categories" aria-label="分类导航">
+    <section class="sidebar-categories">
       <div class="sidebar-categories-heading">
         <span>分类</span>
         <RouterLink
           class="sidebar-categories-manage"
           :class="{ 'sidebar-categories-manage--active': isActive('categories') }"
           to="/categories"
-          aria-label="管理分类"
         >
           <el-icon><Setting /></el-icon>
         </RouterLink>
       </div>
-      <div v-if="visibleCategories.length > 0" class="sidebar-category-tree">
+      <el-scrollbar v-if="visibleCategories.length > 0" class="sidebar-category-tree">
         <RouterLink
           v-for="category in visibleCategories"
           :key="category.id"
@@ -133,7 +108,7 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
             category.noteCount
           }}</small>
         </RouterLink>
-      </div>
+      </el-scrollbar>
       <p v-else class="sidebar-category-empty">暂无分类</p>
     </section>
 
@@ -185,21 +160,13 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   font-weight: 750;
 }
 
-.sidebar-brand-name,
-.sidebar-brand-copy {
+.sidebar-brand-name {
   display: block;
 }
 
 .sidebar-brand-name {
   color: var(--color-text-primary);
   font-size: 0.9375rem;
-  line-height: 1.2;
-}
-
-.sidebar-brand-copy {
-  margin-block-start: 3px;
-  color: var(--color-text-muted);
-  font-size: 0.625rem;
   line-height: 1.2;
 }
 
@@ -210,8 +177,7 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   font-weight: 600;
 }
 
-.sidebar-nav,
-.sidebar-category-tree {
+.sidebar-nav {
   display: grid;
   gap: 4px;
 }
@@ -294,8 +260,13 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
 }
 
 .sidebar-category-tree {
+  min-block-size: 0;
+}
+
+.sidebar-category-tree :deep(.el-scrollbar__view) {
+  display: grid;
   align-content: start;
-  overflow: auto;
+  gap: 4px;
 }
 
 .sidebar-category-item {

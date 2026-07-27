@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { ref } from 'vue'
 import NoteList from '@/features/notes/NoteList.vue'
 import type { NoteSummary } from '@/types/notes'
 
@@ -8,6 +9,7 @@ function createNotes(count: number): NoteSummary[] {
     id: `note-${index}`,
     title: `笔记 ${index}`,
     contentPreview: `第 ${index} 条笔记的摘要。`,
+    isPinned: false,
     createdAt: '2026-07-26T00:00:00Z',
     updatedAt: '2026-07-26T00:00:00Z',
   }))
@@ -29,6 +31,12 @@ describe('NoteList', () => {
             emits: ['update:modelValue'],
             template:
               '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+          },
+          ElScrollbar: {
+            setup() {
+              return { wrapRef: ref<HTMLDivElement>() }
+            },
+            template: '<div ref="wrapRef"><slot /></div>',
           },
         },
       },

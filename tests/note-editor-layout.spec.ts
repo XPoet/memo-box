@@ -18,6 +18,15 @@ describe('笔记编辑器布局', () => {
 
   it('按设计稿保留 56px 工具栏和 34px 文档状态栏', () => {
     expect(noteEditorSource).toContain('grid-template-rows: 56px minmax(0, 1fr) 34px')
-    expect(noteEditorSource).toContain('<EditorStatusBar :content="note.content" />')
+    expect(noteEditorSource).toContain(':save-status="saveStatus"')
+    expect(noteEditorSource).toContain(':save-error="saveError"')
+  })
+
+  it('将分类和标签收纳到删除按钮后的更多操作中', () => {
+    expect(noteEditorSource).toContain(':icon="MoreFilled"')
+    expect(noteEditorSource).toContain(
+      '<el-popover placement="bottom-end" :width="360" trigger="click">',
+    )
+    expect(noteEditorSource).toContain(':category-id="note.categoryId"')
   })
 })

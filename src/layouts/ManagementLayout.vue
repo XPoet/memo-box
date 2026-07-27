@@ -18,7 +18,7 @@ const emit = defineEmits<{
 
 <template>
   <main class="management-layout">
-    <aside class="management-sidebar" aria-label="主导航">
+    <aside class="management-sidebar">
       <AppSidebar
         :categories="categories"
         :tag-count="tagCount"
@@ -37,9 +37,11 @@ const emit = defineEmits<{
           <slot name="action" />
         </div>
       </header>
-      <section class="management-content">
-        <slot />
-      </section>
+      <el-scrollbar class="management-content">
+        <section class="management-content-view">
+          <slot />
+        </section>
+      </el-scrollbar>
     </section>
   </main>
 </template>
@@ -101,8 +103,12 @@ const emit = defineEmits<{
 
 .management-content {
   min-block-size: 0;
+}
+
+.management-content-view {
+  box-sizing: border-box;
+  min-block-size: 100%;
   padding: 20px 36px;
-  overflow: auto;
 }
 
 @media (max-width: 1400px) {
@@ -120,7 +126,7 @@ const emit = defineEmits<{
     padding-inline: var(--space-24);
   }
 
-  .management-content {
+  .management-content-view {
     padding-inline: var(--space-24);
   }
 }

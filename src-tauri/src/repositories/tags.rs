@@ -13,8 +13,10 @@ impl TagsRepository {
     pub fn list(connection: &Connection) -> Result<Vec<TagSummary>, TagError> {
         let mut statement = connection
             .prepare(
-                "SELECT tags.id, tags.name, COUNT(note_tags.note_id)
-             FROM tags LEFT JOIN note_tags ON note_tags.tag_id = tags.id
+                "SELECT tags.id, tags.name, COUNT(notes.id)
+             FROM tags
+             LEFT JOIN note_tags ON note_tags.tag_id = tags.id
+             LEFT JOIN notes ON notes.id = note_tags.note_id AND notes.is_deleted = 0
              GROUP BY tags.id ORDER BY lower(tags.name), tags.id",
             )
             .map_err(|_| TagError::OperationFailed)?;
@@ -225,7 +227,7 @@ impl TagsRepository {
             .collect::<Vec<_>>()
             .join(", ");
         let sql = format!(
-            "SELECT notes.id, notes.title, notes.content, notes.created_at, notes.updated_at FROM notes JOIN note_tags ON note_tags.note_id = notes.id WHERE notes.is_deleted = 0 AND note_tags.tag_id IN ({placeholders}) GROUP BY notes.id HAVING COUNT(DISTINCT note_tags.tag_id) = ?{} ORDER BY notes.is_pinned DESC, {}",
+            "SELECT notes.id, notes.title, notes.content, notes.is_pinned, notes.created_at, notes.updated_at FROM notes JOIN note_tags ON note_tags.note_id = notes.id WHERE notes.is_deleted = 0 AND note_tags.tag_id IN ({placeholders}) GROUP BY notes.id HAVING COUNT(DISTINCT note_tags.tag_id) = ?{} ORDER BY notes.is_pinned DESC, {}",
             unique.len() + 1,
             note_sort.order_by_sql()
         );
@@ -247,8 +249,9 @@ impl TagsRepository {
                     id: row.get(0)?,
                     title: row.get(1)?,
                     content_preview: content_preview(&content),
-                    created_at: row.get(3)?,
-                    updated_at: row.get(4)?,
+                    is_pinned: row.get(3)?,
+                    created_at: row.get(4)?,
+                    updated_at: row.get(5)?,
                 })
             })
             .map_err(|_| TagError::OperationFailed)?;
@@ -265,7 +268,7 @@ fn tag_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TagSummary> {
     })
 }
 fn find_tag(connection: &Connection, id: &str) -> Result<TagSummary, TagError> {
-    connection.query_row("SELECT tags.id, tags.name, COUNT(note_tags.note_id) FROM tags LEFT JOIN note_tags ON note_tags.tag_id = tags.id WHERE tags.id = ?1 GROUP BY tags.id", params![id], tag_from_row).optional().map_err(|_| TagError::OperationFailed)?.ok_or(TagError::NotFound)
+    connection.query_row("SELECT tags.id, tags.name, COUNT(notes.id) FROM tags LEFT JOIN note_tags ON note_tags.tag_id = tags.id LEFT JOIN notes ON notes.id = note_tags.note_id AND notes.is_deleted = 0 WHERE tags.id = ?1 GROUP BY tags.id", params![id], tag_from_row).optional().map_err(|_| TagError::OperationFailed)?.ok_or(TagError::NotFound)
 }
 fn tag_id_by_name(
     connection: &rusqlite::Transaction<'_>,

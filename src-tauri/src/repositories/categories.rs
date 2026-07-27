@@ -313,13 +313,13 @@ impl CategoriesRepository {
         let sql = match category_id {
             Some(_) => {
                 format!(
-                    "WITH RECURSIVE descendants(id) AS (SELECT id FROM categories WHERE id = ?1 UNION ALL SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id) SELECT id, title, content, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IN descendants ORDER BY is_pinned DESC, {}",
+                    "WITH RECURSIVE descendants(id) AS (SELECT id FROM categories WHERE id = ?1 UNION ALL SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id) SELECT id, title, content, is_pinned, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IN descendants ORDER BY is_pinned DESC, {}",
                     note_sort.order_by_sql()
                 )
             }
             None => {
                 format!(
-                    "SELECT id, title, content, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IS NULL ORDER BY is_pinned DESC, {}",
+                    "SELECT id, title, content, is_pinned, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IS NULL ORDER BY is_pinned DESC, {}",
                     note_sort.order_by_sql()
                 )
             }
@@ -333,8 +333,9 @@ impl CategoriesRepository {
                 id: row.get(0)?,
                 title: row.get(1)?,
                 content_preview: content_preview(&content),
-                created_at: row.get(3)?,
-                updated_at: row.get(4)?,
+                is_pinned: row.get(3)?,
+                created_at: row.get(4)?,
+                updated_at: row.get(5)?,
             })
         };
         let rows = match category_id {

@@ -80,7 +80,7 @@ onMounted(() => {
     :tag-count="tagsStore.tags.length"
     @create="createNote"
   >
-    <section class="search-view" aria-label="全局搜索">
+    <section class="search-view">
       <SearchInput
         :model-value="inputValue"
         @update:model-value="updateQuery"
@@ -108,7 +108,6 @@ onMounted(() => {
 .search-view {
   display: grid;
   gap: var(--space-12);
-  max-inline-size: 980px;
 }
 
 .search-tip {

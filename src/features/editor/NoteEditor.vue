@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Delete, Download, Folder, Star, StarFilled } from '@element-plus/icons-vue'
+import { Delete, Download, Folder, MoreFilled, Star, StarFilled } from '@element-plus/icons-vue'
 import { computed, useTemplateRef, watch } from 'vue'
 import EditorStatusBar from './EditorStatusBar.vue'
 import MarkdownEditor from './MarkdownEditor.vue'
 import MissingAssetNotice from './MissingAssetNotice.vue'
 import NoteMetadata from './NoteMetadata.vue'
-import SaveStatus from './SaveStatus.vue'
 import type { CategoryNode } from '@/types/categories'
 import type { SaveStatus as SaveStatusType } from '@/stores/notes'
 import type { NoteDetail } from '@/types/notes'
@@ -37,6 +36,9 @@ const emit = defineEmits<{
 const titleInput = useTemplateRef<{ focus: () => void }>('titleInput')
 const markdownEditor = useTemplateRef<{ focus: () => void }>('markdownEditor')
 const noteId = computed(() => props.note?.id)
+const noteCategoryPath = computed(
+  () => findCategoryPath(props.categories, props.note?.categoryId) ?? '未分类',
+)
 
 watch(noteId, () => {
   requestAnimationFrame(() => titleInput.value?.focus())
@@ -56,6 +58,19 @@ function updateContent(content: string): void {
   }
 }
 
+function findCategoryPath(categories: CategoryNode[], categoryId?: string): string | undefined {
+  if (categoryId === undefined) return undefined
+
+  for (const category of categories) {
+    if (category.id === categoryId) return category.path
+
+    const childPath = findCategoryPath(category.children, categoryId)
+    if (childPath !== undefined) return childPath
+  }
+
+  return undefined
+}
+
 function focusEditor(): void {
   markdownEditor.value?.focus()
 }
@@ -68,28 +83,31 @@ defineExpose({ focusEditor })
     <header class="note-editor-header">
       <p class="note-editor-location">
         <el-icon><Folder /></el-icon>
-        Markdown 笔记
+        {{ noteCategoryPath }}
       </p>
-      <div class="note-editor-status">
-        <SaveStatus :status="saveStatus" :message="saveError" />
-        <el-button v-if="saveStatus === 'failed'" text type="primary" @click="emit('retry')">
-          重试
-        </el-button>
-        <el-button text aria-label="导出 Markdown" @click="emit('export')">
-          <el-icon><Download /></el-icon>
-          导出
-        </el-button>
+      <div class="note-editor-actions">
         <el-button
           text
-          :aria-label="note.isPinned ? '取消置顶笔记' : '置顶笔记'"
+          circle
+          :icon="note.isPinned ? StarFilled : Star"
           @click="emit('togglePin')"
-        >
-          <el-icon><StarFilled v-if="note.isPinned" /><Star v-else /></el-icon>
-          {{ note.isPinned ? '已置顶' : '置顶' }}
-        </el-button>
-        <el-button text type="danger" circle aria-label="移入回收站" @click="emit('trash')">
-          <el-icon><Delete /></el-icon>
-        </el-button>
+        />
+        <el-button text circle :icon="Download" @click="emit('export')" />
+        <el-button text type="danger" circle :icon="Delete" @click="emit('trash')" />
+        <el-popover placement="bottom-end" :width="360" trigger="click">
+          <template #reference>
+            <el-button text circle :icon="MoreFilled" />
+          </template>
+          <NoteMetadata
+            :categories="categories"
+            :category-id="note.categoryId"
+            :tags="tags"
+            :selected-tag-ids="selectedTagIds"
+            @create-tag="emit('createTag', $event)"
+            @update-category="emit('updateCategory', $event)"
+            @update-tags="emit('updateTags', $event)"
+          />
+        </el-popover>
       </div>
     </header>
     <div class="note-editor-content">
@@ -98,19 +116,9 @@ defineExpose({ focusEditor })
         class="note-title-input"
         :model-value="note.title"
         placeholder="无标题笔记"
-        aria-label="笔记标题"
         @update:model-value="updateTitle"
       />
-      <NoteMetadata
-        :categories="categories"
-        :category-id="note.categoryId"
-        :tags="tags"
-        :selected-tag-ids="selectedTagIds"
-        @create-tag="emit('createTag', $event)"
-        @update-category="emit('updateCategory', $event)"
-        @update-tags="emit('updateTags', $event)"
-      />
-      <MissingAssetNotice :missing-asset-count="missingAssetCount" />
+      <MissingAssetNotice v-if="missingAssetCount" :missing-asset-count="missingAssetCount" />
       <div class="note-editor-body">
         <MarkdownEditor
           ref="markdownEditor"
@@ -123,10 +131,14 @@ defineExpose({ focusEditor })
         />
       </div>
     </div>
-    <EditorStatusBar :content="note.content" />
+    <EditorStatusBar
+      :content="note.content"
+      :save-status="saveStatus"
+      :save-error="saveError"
+      @retry="emit('retry')"
+    />
   </section>
   <section v-else class="editor-empty-state">
-    <p class="editor-empty-eyebrow">MemoBox</p>
     <h1 class="editor-empty-title">打开即记</h1>
     <p class="editor-empty-copy">从左侧新建一条笔记，纯文本和图片都会保存在本机。</p>
   </section>
@@ -171,7 +183,9 @@ defineExpose({ focusEditor })
 }
 
 .note-title-input :deep(.el-input__wrapper) {
+  min-block-size: 50px;
   padding: 0;
+  background: transparent;
   box-shadow: none;
 }
 
@@ -179,23 +193,26 @@ defineExpose({ focusEditor })
   min-inline-size: 0;
   block-size: auto;
   color: var(--color-text-primary);
-  font-size: 1.75rem;
-  font-weight: 650;
-  letter-spacing: -0.025em;
+  caret-color: var(--color-accent);
+  font-size: 2.2rem;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
-.note-editor-status {
+.note-editor-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
   flex-shrink: 0;
 }
 
 .note-editor-body {
   display: grid;
+  grid-row: 3;
   grid-template-rows: minmax(0, 1fr);
   min-block-size: 0;
+  margin-block-start: var(--space-8);
   overflow: hidden;
+  border-block-start: 1px solid var(--color-divider);
 }
 
 .note-editor-markdown {
@@ -205,11 +222,12 @@ defineExpose({ focusEditor })
 .note-editor-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-block-size: 0;
-  gap: var(--space-16);
-  padding: 30px 44px 0;
+  gap: 0;
+  padding: 20px 30px 0;
   overflow: hidden;
+  background: var(--color-canvas);
 }
 
 @media (max-width: 900px) {
@@ -223,6 +241,7 @@ defineExpose({ focusEditor })
 
   .note-editor-content {
     padding-inline: var(--space-24);
+    padding-block-start: var(--space-32);
   }
 }
 
@@ -235,16 +254,9 @@ defineExpose({ focusEditor })
   padding: var(--space-32);
 }
 
-.editor-empty-eyebrow,
 .editor-empty-title,
 .editor-empty-copy {
   margin: 0;
-}
-
-.editor-empty-eyebrow {
-  color: var(--color-accent);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
 }
 
 .editor-empty-title {
