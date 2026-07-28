@@ -7,20 +7,29 @@ use crate::domain::settings::{SaveSettingsRequest, SettingsError, SettingsSnapsh
 use crate::repositories::settings::SettingsRepository;
 
 pub struct SettingsService {
+    data_directory: PathBuf,
     database_path: PathBuf,
+    desktop_directory: PathBuf,
 }
 
 impl SettingsService {
-    pub fn new(data_directory: &Path) -> Self {
+    pub fn new(data_directory: &Path, desktop_directory: &Path) -> Self {
         Self {
+            data_directory: data_directory.to_path_buf(),
             database_path: data_directory.join("database").join("memobox.db"),
+            desktop_directory: desktop_directory.to_path_buf(),
         }
     }
 
     pub fn get(&self, app_version: &str) -> Result<SettingsSnapshot, SettingsError> {
         let connection =
             open_database(&self.database_path).map_err(|_| SettingsError::ReadFailed)?;
-        snapshot(&connection, app_version)
+        snapshot(
+            &connection,
+            app_version,
+            &self.data_directory,
+            &self.desktop_directory,
+        )
     }
 
     pub fn save(
@@ -44,24 +53,41 @@ impl SettingsService {
                 .map(|directory| directory.as_deref()),
             &current_time()?,
         )?;
-        snapshot(&connection, app_version)
+        snapshot(
+            &connection,
+            app_version,
+            &self.data_directory,
+            &self.desktop_directory,
+        )
     }
 }
 
 fn snapshot(
     connection: &rusqlite::Connection,
     app_version: &str,
+    data_directory: &Path,
+    desktop_directory: &Path,
 ) -> Result<SettingsSnapshot, SettingsError> {
     let values = SettingsRepository::read_values(connection)?;
-    let directory_label = values
+    let configured_directory = values
         .get("default_export_directory")
-        .and_then(|path| valid_directory_label(Path::new(path)));
+        .and_then(|path| valid_export_directory_path(Path::new(path)));
+    let (default_export_directory, has_custom_default_export_directory) = match configured_directory
+    {
+        Some(directory) => (directory, true),
+        None => (
+            validate_export_directory(&desktop_directory.to_string_lossy())?,
+            false,
+        ),
+    };
     Ok(SettingsSnapshot {
         theme: SettingsRepository::theme(&values),
         note_sort: SettingsRepository::note_sort(connection)?,
         editor_font_size: SettingsRepository::editor_font_size(&values),
         show_category_counts: SettingsRepository::show_category_counts(&values),
-        default_export_directory_label: directory_label,
+        data_directory: data_directory.to_string_lossy().into_owned(),
+        default_export_directory,
+        has_custom_default_export_directory,
         app_version: app_version.to_owned(),
         schema_version: SettingsRepository::schema_version(connection)?,
     })
@@ -91,15 +117,8 @@ fn validate_export_directory(value: &str) -> Result<String, SettingsError> {
     Ok(canonical.to_string_lossy().into_owned())
 }
 
-fn valid_directory_label(path: &Path) -> Option<String> {
-    let metadata = path.metadata().ok()?;
-    if !metadata.is_dir() || metadata.permissions().readonly() {
-        return None;
-    }
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .filter(|name| !name.is_empty())
-        .map(ToOwned::to_owned)
+fn valid_export_directory_path(path: &Path) -> Option<String> {
+    validate_export_directory(&path.to_string_lossy()).ok()
 }
 
 fn current_time() -> Result<String, SettingsError> {
@@ -133,7 +152,7 @@ mod tests {
     fn saves_and_reads_allowed_preferences() -> Result<(), Box<dyn std::error::Error>> {
         let directory = data_directory();
         BootstrapRepository::initialize(&directory.join("database").join("memobox.db"))?;
-        let service = SettingsService::new(&directory);
+        let service = SettingsService::new(&directory, &directory);
         let snapshot = service.save(
             &SaveSettingsRequest {
                 theme: ThemePreference::Dark,
@@ -148,8 +167,30 @@ mod tests {
         assert_eq!(snapshot.note_sort, NoteSort::Title);
         assert_eq!(snapshot.editor_font_size, 17);
         assert!(!snapshot.show_category_counts);
-        assert!(snapshot.default_export_directory_label.is_some());
+        assert_eq!(snapshot.data_directory, directory.to_string_lossy());
+        assert_eq!(
+            snapshot.default_export_directory,
+            directory.canonicalize()?.to_string_lossy()
+        );
+        assert!(snapshot.has_custom_default_export_directory);
         assert_eq!(service.get("0.1.0")?.editor_font_size, 17);
+        Ok(())
+    }
+
+    #[test]
+    fn uses_desktop_directory_when_no_custom_export_directory_is_saved()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = data_directory();
+        let desktop_directory = directory.join("Desktop");
+        std::fs::create_dir_all(&desktop_directory)?;
+        BootstrapRepository::initialize(&directory.join("database").join("memobox.db"))?;
+        let snapshot = SettingsService::new(&directory, &desktop_directory).get("0.1.0")?;
+
+        assert_eq!(
+            snapshot.default_export_directory,
+            desktop_directory.canonicalize()?.to_string_lossy()
+        );
+        assert!(!snapshot.has_custom_default_export_directory);
         Ok(())
     }
 }

@@ -16,7 +16,9 @@ const snapshot = {
   noteSort: 'title' as const,
   editorFontSize: 17 as const,
   showCategoryCounts: false,
-  defaultExportDirectoryLabel: '导出',
+  dataDirectory: '/Users/example/Library/Application Support/cn.xpoet.memobox',
+  defaultExportDirectory: '/Users/example/Desktop',
+  hasCustomDefaultExportDirectory: false,
   appVersion: '0.1.0',
   schemaVersion: 3,
 }
@@ -83,7 +85,7 @@ describe('settings store', () => {
     expect(settingsService.getSettings).toHaveBeenCalledTimes(1)
   })
 
-  it('保存合法设置后仅保留安全快照，不持久化目录绝对路径', async () => {
+  it('保存合法设置后保留经过后端校验的目录快照', async () => {
     settingsService.saveSettings.mockResolvedValue(snapshot)
     const store = useSettingsStore()
 
@@ -96,6 +98,6 @@ describe('settings store', () => {
     })
 
     expect(settingsService.saveSettings).toHaveBeenCalled()
-    expect(JSON.stringify(store.snapshot)).not.toContain('/private/export-target')
+    expect(store.snapshot).toEqual(snapshot)
   })
 })

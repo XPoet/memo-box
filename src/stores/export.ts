@@ -63,6 +63,12 @@ export const useExportStore = defineStore('export', () => {
     }
   }
 
+  function setDefaultDirectory(directory: string): void {
+    if (status.value === 'idle' && targetDirectory.value === undefined) {
+      targetDirectory.value = directory
+    }
+  }
+
   async function cancel(): Promise<void> {
     if (status.value !== 'exporting' || activeJobId === undefined || isCancelling.value) {
       return
@@ -115,6 +121,7 @@ export const useExportStore = defineStore('export', () => {
     isCancelling,
     isOpeningDirectory,
     chooseDirectory,
+    setDefaultDirectory,
     start,
     cancel,
     openDirectory,

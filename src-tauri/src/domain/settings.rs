@@ -69,7 +69,9 @@ pub struct SettingsSnapshot {
     pub note_sort: NoteSort,
     pub editor_font_size: u8,
     pub show_category_counts: bool,
-    pub default_export_directory_label: Option<String>,
+    pub data_directory: String,
+    pub default_export_directory: String,
+    pub has_custom_default_export_directory: bool,
     pub app_version: String,
     pub schema_version: u32,
 }

@@ -6,7 +6,9 @@ export interface SettingsSnapshot {
   noteSort: NoteSort
   editorFontSize: 14 | 15 | 16 | 17 | 18
   showCategoryCounts: boolean
-  defaultExportDirectoryLabel?: string
+  dataDirectory: string
+  defaultExportDirectory: string
+  hasCustomDefaultExportDirectory: boolean
   appVersion: string
   schemaVersion: number
 }

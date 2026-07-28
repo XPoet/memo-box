@@ -191,19 +191,21 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 
 无参数。返回 `SettingsSnapshot`：
 
-| 字段                          | 类型                                    | 说明                                                |
-| ----------------------------- | --------------------------------------- | --------------------------------------------------- |
-| `theme`                       | `'light' ｜ 'dark' ｜ 'system'`         | 默认 `system`；前端在启动前据此设置根元素属性       |
-| `noteSort`                    | `'updatedAt' ｜ 'createdAt' ｜ 'title'` | 默认 `updatedAt`                                    |
-| `editorFontSize`              | `14 ｜ 15 ｜ 16 ｜ 17 ｜ 18`            | 默认 `15`，单位为 px                                |
-| `showCategoryCounts`          | boolean                                 | 默认 `true`                                         |
-| `defaultExportDirectoryLabel` | string ｜ null                          | 仅返回目录名称，不返回绝对路径；失效目录返回 `null` |
-| `appVersion`                  | string                                  | 由应用包版本读取                                    |
-| `schemaVersion`               | number                                  | 最后成功 Migration 版本                             |
+| 字段                              | 类型                                    | 说明                                               |
+| --------------------------------- | --------------------------------------- | -------------------------------------------------- |
+| `theme`                           | `'light' ｜ 'dark' ｜ 'system'`         | 默认 `system`；前端在启动前据此设置根元素属性      |
+| `noteSort`                        | `'updatedAt' ｜ 'createdAt' ｜ 'title'` | 默认 `updatedAt`                                   |
+| `editorFontSize`                  | `14 ｜ 15 ｜ 16 ｜ 17 ｜ 18`            | 默认 `15`，单位为 px                               |
+| `showCategoryCounts`              | boolean                                 | 默认 `true`                                        |
+| `dataDirectory`                   | string                                  | 系统应用数据目录的绝对路径，仅供设置页只读展示     |
+| `defaultExportDirectory`          | string                                  | 当前有效的默认导出目录绝对路径；未配置时为桌面目录 |
+| `hasCustomDefaultExportDirectory` | boolean                                 | 是否已保存用户选择的默认导出目录                   |
+| `appVersion`                      | string                                  | 由应用包版本读取                                   |
+| `schemaVersion`                   | number                                  | 最后成功 Migration 版本                            |
 
 ### `save_settings`
 
-请求：`{ theme, noteSort, editorFontSize, showCategoryCounts, defaultExportDirectory? }`。所有非路径值必须是上述枚举或范围内的值；`defaultExportDirectory` 只能来自系统目录选择器，Rust 规范化、验证存在和可写后保存。省略该字段时保留当前默认导出目录，传入 `null` 时清除。成功返回完整 `SettingsSnapshot`，不会回传绝对路径。
+请求：`{ theme, noteSort, editorFontSize, showCategoryCounts, defaultExportDirectory? }`。所有非路径值必须是上述枚举或范围内的值；`defaultExportDirectory` 只能来自系统目录选择器，Rust 规范化、验证存在和可写后保存。省略该字段时保留当前默认导出目录，传入 `null` 时清除并回退到桌面目录。成功返回完整 `SettingsSnapshot`；其中数据目录和当前有效的默认导出目录绝对路径仅用于设置页只读展示及导出默认值，前端不得将它们拼接为任意文件访问请求。
 
 ### `open_data_directory`
 

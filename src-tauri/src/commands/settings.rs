@@ -46,8 +46,14 @@ where
         .path()
         .app_data_dir()
         .map_err(|_| SettingsCommandError::from(SettingsError::DirectoryUnavailable))?;
-    tauri::async_runtime::spawn_blocking(move || task(SettingsService::new(&data_directory)))
-        .await
-        .map_err(|_| SettingsCommandError::from(SettingsError::SaveFailed))?
-        .map_err(SettingsCommandError::from)
+    let desktop_directory = app
+        .path()
+        .desktop_dir()
+        .map_err(|_| SettingsCommandError::from(SettingsError::DirectoryUnavailable))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        task(SettingsService::new(&data_directory, &desktop_directory))
+    })
+    .await
+    .map_err(|_| SettingsCommandError::from(SettingsError::SaveFailed))?
+    .map_err(SettingsCommandError::from)
 }

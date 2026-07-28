@@ -5,6 +5,7 @@ import ExportDirectoryPicker from './ExportDirectoryPicker.vue'
 import ExportScopeOption from './ExportScopeOption.vue'
 import ExportStatusPanel from './ExportStatusPanel.vue'
 import { useExportStore } from '@/stores/export'
+import { useSettingsStore } from '@/stores/settings'
 import type { ExportScope, ExportScopeOption as ExportScopeOptionType } from '@/types/export'
 
 const props = defineProps<{
@@ -17,6 +18,7 @@ const emit = defineEmits<{
 }>()
 
 const exportStore = useExportStore()
+const settingsStore = useSettingsStore()
 const selectedScope = shallowRef<ExportScope>()
 const canClose = computed(
   () => exportStore.status !== 'exporting' && exportStore.status !== 'choosing',
@@ -30,10 +32,19 @@ const canStart = computed(
 
 watch(
   () => props.modelValue,
-  (visible) => {
+  async (visible) => {
     if (visible) {
       selectedScope.value = props.scopeOptions[0]?.scope
       exportStore.reset()
+      if (settingsStore.snapshot === undefined) {
+        await settingsStore.load()
+      }
+      if (!props.modelValue || exportStore.status !== 'idle') {
+        return
+      }
+      if (settingsStore.snapshot?.defaultExportDirectory !== undefined) {
+        exportStore.setDefaultDirectory(settingsStore.snapshot.defaultExportDirectory)
+      }
     }
   },
   { immediate: true },

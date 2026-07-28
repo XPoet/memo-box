@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { FolderOpened, Setting } from '@element-plus/icons-vue';
-import { computed } from 'vue';
-import type { NoteSort, SettingsSnapshot, ThemePreference } from '@/types/settings';
+import { FolderOpened, Setting } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import type { NoteSort, SettingsSnapshot, ThemePreference } from '@/types/settings'
 
 const props = defineProps<{
   settings?: SettingsSnapshot
   isSaving: boolean
   isOpeningDirectory: boolean
-}>();
+}>()
 
 const emit = defineEmits<{
   update: [
@@ -19,35 +19,34 @@ const emit = defineEmits<{
     },
   ]
   chooseDefaultExportDirectory: []
-  clearDefaultExportDirectory: []
   openDataDirectory: []
-}>();
+}>()
 
 const theme = computed({
   get: () => props.settings?.theme ?? 'system',
   set: (value: ThemePreference) => emit('update', { theme: value }),
-});
+})
 const noteSort = computed({
   get: () => props.settings?.noteSort ?? 'updatedAt',
   set: (value: NoteSort) => emit('update', { noteSort: value }),
-});
+})
 const editorFontSize = computed({
   get: () => props.settings?.editorFontSize ?? 15,
   set: (value: number) => emit('update', { editorFontSize: value as 14 | 15 | 16 | 17 | 18 }),
-});
+})
 const showCategoryCounts = computed({
   get: () => props.settings?.showCategoryCounts ?? true,
   set: (value: boolean) => emit('update', { showCategoryCounts: value }),
-});
+})
 
 function updateEditorFontSize(value: number): void {
   if (isEditorFontSize(value)) {
-    emit('update', { editorFontSize: value });
+    emit('update', { editorFontSize: value })
   }
 }
 
 function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
-  return value === 14 || value === 15 || value === 16 || value === 17 || value === 18;
+  return value === 14 || value === 15 || value === 16 || value === 17 || value === 18
 }
 </script>
 
@@ -55,33 +54,29 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
   <section class="settings-panel">
     <article class="settings-group">
       <header>
-        <el-icon>
-          <Setting />
-        </el-icon>
         <div>
           <h2>外观与编辑</h2>
           <p>设置会立即应用，并在下次启动时恢复。</p>
         </div>
       </header>
-      <label class="settings-row"><span><strong>主题</strong><small>选择界面颜色模式。</small></span>
+      <label class="settings-row"
+        ><span><strong>主题</strong><small>选择界面颜色模式。</small></span>
         <el-select v-model="theme" :disabled="isSaving">
           <el-option label="跟随系统" value="system" />
-          <el-option
-            label="浅色"
-            value="light" />
+          <el-option label="浅色" value="light" />
           <el-option label="深色" value="dark" />
         </el-select>
       </label>
-      <label class="settings-row"><span><strong>默认排序</strong><small>置顶笔记始终优先显示。</small></span>
+      <label class="settings-row">
+        <span><strong>默认排序</strong><small>置顶笔记始终优先显示。</small></span>
         <el-select v-model="noteSort" :disabled="isSaving">
           <el-option label="最近编辑" value="updatedAt" />
-          <el-option
-            label="创建时间"
-            value="createdAt" />
+          <el-option label="创建时间" value="createdAt" />
           <el-option label="标题" value="title" />
         </el-select>
       </label>
-      <label class="settings-row"><span><strong>编辑器字体大小</strong><small>仅影响 Markdown 源码编辑区。</small></span>
+      <label class="settings-row">
+        <span><strong>编辑器字体大小</strong><small>仅影响 Markdown 源码编辑区。</small></span>
         <el-select
           :model-value="editorFontSize"
           :disabled="isSaving"
@@ -91,52 +86,40 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
             v-for="size in [14, 15, 16, 17, 18]"
             :key="size"
             :label="`${size} px`"
-            :value="size" />
+            :value="size"
+          />
         </el-select>
       </label>
-      <label
-        class="settings-row"><span><strong>显示分类笔记数量</strong><small>控制侧栏分类树中的统计数字。</small></span>
+      <label class="settings-row">
+        <span><strong>显示分类笔记数量</strong><small>控制侧栏分类树中的统计数字。</small></span>
         <el-switch v-model="showCategoryCounts" :disabled="isSaving" />
       </label>
     </article>
 
     <article class="settings-group">
       <header>
-        <el-icon>
-          <FolderOpened />
-        </el-icon>
         <div>
           <h2>本地目录与导出</h2>
           <p>数据目录固定由系统管理，不能修改或迁移。</p>
         </div>
       </header>
       <div class="settings-row">
-        <span><strong>当前数据目录</strong><small>包含数据库、图片、日志和配置。</small></span>
+        <span>
+          <strong>当前数据目录</strong>
+          <small>{{ settings?.dataDirectory ?? '正在读取数据目录。' }}</small>
+        </span>
         <el-button :loading="isOpeningDirectory" @click="emit('openDataDirectory')">
           打开数据目录
         </el-button>
       </div>
       <div class="settings-row">
-        <span><strong>默认导出目录</strong>
-          <small>
-            {{
-              settings?.defaultExportDirectoryLabel
-                ? `当前：${settings.defaultExportDirectoryLabel}`
-                : '尚未设置，每次导出时将由你选择。'
-            }}
-          </small></span>
+        <span>
+          <strong>默认导出目录</strong>
+          <small>{{ settings?.defaultExportDirectory ?? '正在读取默认导出目录。' }}</small>
+        </span>
         <div class="settings-actions">
           <el-button :disabled="isSaving" @click="emit('chooseDefaultExportDirectory')">
             选择目录
-          </el-button>
-          <el-button
-            v-if="settings?.defaultExportDirectoryLabel"
-            text
-            type="danger"
-            :disabled="isSaving"
-            @click="emit('clearDefaultExportDirectory')"
-          >
-            清除
           </el-button>
         </div>
       </div>
@@ -165,7 +148,6 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
 .settings-panel {
   display: grid;
   gap: var(--space-16);
-  max-inline-size: 920px;
 }
 
 .settings-group {
@@ -203,6 +185,7 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
   color: var(--color-text-secondary);
   font-size: 0.75rem;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .settings-group p {
@@ -242,7 +225,6 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
 .settings-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
   flex: 0 0 auto;
 }
 

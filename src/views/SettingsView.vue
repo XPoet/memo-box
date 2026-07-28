@@ -21,12 +21,16 @@ function requestFromCurrent(
 ): SaveSettingsRequest | undefined {
   const settings = settingsStore.snapshot
   if (settings === undefined) return undefined
-  return {
+  const request: SaveSettingsRequest = {
     theme: changes.theme ?? settings.theme,
     noteSort: changes.noteSort ?? settings.noteSort,
     editorFontSize: changes.editorFontSize ?? settings.editorFontSize,
     showCategoryCounts: changes.showCategoryCounts ?? settings.showCategoryCounts,
   }
+  if (changes.defaultExportDirectory !== undefined) {
+    request.defaultExportDirectory = changes.defaultExportDirectory
+  }
+  return request
 }
 
 async function updateSettings(changes: Partial<SaveSettingsRequest>): Promise<void> {
@@ -40,12 +44,12 @@ async function updateSettings(changes: Partial<SaveSettingsRequest>): Promise<vo
 }
 
 async function chooseDirectory(): Promise<void> {
-  const directory = await chooseDefaultExportDirectory()
-  if (directory !== undefined) await updateSettings({ defaultExportDirectory: directory })
-}
-
-async function clearDirectory(): Promise<void> {
-  await updateSettings({ defaultExportDirectory: null })
+  try {
+    const directory = await chooseDefaultExportDirectory()
+    if (directory !== undefined) await updateSettings({ defaultExportDirectory: directory })
+  } catch {
+    ElMessage.error('无法选择默认导出目录。')
+  }
 }
 
 async function openDirectory(): Promise<void> {
@@ -87,7 +91,6 @@ onMounted(() => {
       :is-opening-directory="isOpeningDirectory"
       @update="updateSettings"
       @choose-default-export-directory="chooseDirectory"
-      @clear-default-export-directory="clearDirectory"
       @open-data-directory="openDirectory"
     />
   </ManagementLayout>

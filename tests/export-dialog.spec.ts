@@ -15,6 +15,7 @@ vi.mock('@/services/export', () => exportService)
 import ExportDialog from '@/features/export/ExportDialog.vue'
 import ExportDirectoryPicker from '@/features/export/ExportDirectoryPicker.vue'
 import { useExportStore } from '@/stores/export'
+import { useSettingsStore } from '@/stores/settings'
 
 const scopeOptions = [
   {
@@ -91,5 +92,39 @@ describe('ExportDialog', () => {
 
     expect(wrapper.text()).toContain('/private/export-target')
     expect(useExportStore().status).toBe('idle')
+  })
+
+  it('打开时使用设置中的默认导出目录', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    useSettingsStore().snapshot = {
+      theme: 'system',
+      noteSort: 'updatedAt',
+      editorFontSize: 15,
+      showCategoryCounts: true,
+      dataDirectory: '/Users/example/Library/Application Support/cn.xpoet.memobox',
+      defaultExportDirectory: '/Users/example/Desktop',
+      hasCustomDefaultExportDirectory: false,
+      appVersion: '0.1.0',
+      schemaVersion: 3,
+    }
+    const wrapper = mount(ExportDialog, {
+      props: { modelValue: true, scopeOptions },
+      global: {
+        plugins: [pinia],
+        stubs: {
+          ElButton: {
+            props: ['disabled'],
+            template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+          },
+          ElDialog: { template: '<div><slot /><slot name="footer" /></div>' },
+          ElIcon: { template: '<i><slot /></i>' },
+          ElScrollbar: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('/Users/example/Desktop')
+    expect(useExportStore().targetDirectory).toBe('/Users/example/Desktop')
   })
 })
