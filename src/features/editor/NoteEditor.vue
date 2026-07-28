@@ -216,6 +216,7 @@ defineExpose({ focusEditor })
 }
 
 .note-editor-markdown {
+  min-inline-size: 0;
   min-block-size: 0;
 }
 

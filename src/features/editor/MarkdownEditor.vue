@@ -145,9 +145,10 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .markdown-editor {
+  min-inline-size: 0;
   min-block-size: 0;
   block-size: 100%;
-  overflow: auto;
+  overflow: hidden;
   color: var(--color-text-primary);
   font-family: 'Geist Mono', 'SFMono-Regular', Consolas, monospace;
   font-size: var(--editor-font-size);
@@ -155,18 +156,45 @@ onBeforeUnmount(() => {
 }
 
 .markdown-editor :deep(.cm-editor) {
-  min-block-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 0;
+  block-size: 100%;
   outline: none;
 }
 
 .markdown-editor :deep(.cm-scroller) {
-  min-block-size: 100%;
-  padding: var(--space-16) 0 var(--space-24);
+  min-inline-size: 0;
+  block-size: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: rgb(144 147 153 / 30%) transparent;
+  scrollbar-width: thin;
   font-family: inherit;
 }
 
 .markdown-editor :deep(.cm-content) {
+  min-inline-size: 0;
+  min-block-size: 100%;
+  padding: var(--space-16) 0 var(--space-24);
   caret-color: var(--color-accent);
+}
+
+.markdown-editor :deep(.cm-scroller::-webkit-scrollbar) {
+  inline-size: 6px;
+  block-size: 6px;
+}
+
+.markdown-editor :deep(.cm-scroller::-webkit-scrollbar-track) {
+  background: transparent;
+}
+
+.markdown-editor :deep(.cm-scroller::-webkit-scrollbar-thumb) {
+  border-radius: 999px;
+  background: rgb(144 147 153 / 30%);
+}
+
+.markdown-editor :deep(.cm-scroller::-webkit-scrollbar-thumb:hover) {
+  background: rgb(144 147 153 / 50%);
 }
 
 .markdown-editor :deep(.cm-focused) {
