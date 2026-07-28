@@ -276,7 +276,6 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
 }
 
 .sidebar-category-item .el-icon {
-  color: var(--color-accent);
   font-size: 0.875rem;
 }
 

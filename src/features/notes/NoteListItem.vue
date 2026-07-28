@@ -40,7 +40,7 @@ const updatedLabel = computed(() =>
     </span>
     <span class="note-list-item-preview">{{ note.contentPreview || '尚未记录内容' }}</span>
     <span class="note-list-item-meta">
-      <span class="note-list-item-kind">Markdown</span>
+      <span  class="note-list-item-tags">{{ note.tagNames.map((x) => `#${x}`).join(' ') || ''}}</span>
       <span class="note-list-item-time">{{ updatedLabel }}</span>
     </span>
   </button>
@@ -118,13 +118,17 @@ const updatedLabel = computed(() =>
   line-height: 1.5;
 }
 
-.note-list-item-kind,
+.note-list-item-tags,
 .note-list-item-time {
   color: var(--color-text-muted);
   font-size: 0.625rem;
 }
 
-.note-list-item-kind {
+.note-list-item-tags {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--color-accent-active);
 }
 </style>

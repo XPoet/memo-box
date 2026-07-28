@@ -7,6 +7,7 @@ pub struct NoteSummary {
     pub id: String,
     pub title: String,
     pub content_preview: String,
+    pub tag_names: Vec<String>,
     pub is_pinned: bool,
     pub created_at: String,
     pub updated_at: String,

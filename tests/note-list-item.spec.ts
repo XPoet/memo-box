@@ -15,6 +15,7 @@ describe('NoteListItem', () => {
           id: 'pinned-note',
           title: '置顶笔记',
           contentPreview: '摘要',
+          tagNames: ['工作', '重要'],
           isPinned: true,
           createdAt: '2026-07-27T00:00:00Z',
           updatedAt: '2026-07-27T00:00:00Z',
@@ -29,6 +30,7 @@ describe('NoteListItem', () => {
           id: 'regular-note',
           title: '普通笔记',
           contentPreview: '摘要',
+          tagNames: [],
           isPinned: false,
           createdAt: '2026-07-27T00:00:00Z',
           updatedAt: '2026-07-27T00:00:00Z',
@@ -40,5 +42,7 @@ describe('NoteListItem', () => {
 
     expect(pinnedWrapper.find('.note-list-item-pin').exists()).toBe(true)
     expect(regularWrapper.find('.note-list-item-pin').exists()).toBe(false)
+    expect(pinnedWrapper.find('.note-list-item-tags').text()).toBe('工作、重要')
+    expect(regularWrapper.find('.note-list-item-tags').text()).toBe('未添加标签')
   })
 })

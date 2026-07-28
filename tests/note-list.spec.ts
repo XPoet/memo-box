@@ -9,6 +9,7 @@ function createNotes(count: number): NoteSummary[] {
     id: `note-${index}`,
     title: `笔记 ${index}`,
     contentPreview: `第 ${index} 条笔记的摘要。`,
+    tagNames: [],
     isPinned: false,
     createdAt: '2026-07-26T00:00:00Z',
     updatedAt: '2026-07-26T00:00:00Z',

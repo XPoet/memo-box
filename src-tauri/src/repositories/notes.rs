@@ -32,7 +32,14 @@ impl NotesRepository {
         note_sort: NoteSort,
     ) -> Result<Vec<NoteSummary>, NoteError> {
         let sql = format!(
-            "SELECT id, title, content, is_pinned, created_at, updated_at
+            "SELECT id, title, content,
+                    COALESCE((SELECT group_concat(name, char(31)) FROM (
+                        SELECT tags.name FROM note_tags
+                        JOIN tags ON tags.id = note_tags.tag_id
+                        WHERE note_tags.note_id = notes.id
+                        ORDER BY tags.name COLLATE NOCASE ASC
+                    )), ''),
+                    is_pinned, created_at, updated_at
              FROM notes WHERE is_deleted = 0
              ORDER BY is_pinned DESC, {}",
             note_sort.order_by_sql()
@@ -47,9 +54,10 @@ impl NotesRepository {
                     id: row.get(0)?,
                     title: row.get(1)?,
                     content_preview: content_preview(&content),
-                    is_pinned: row.get(3)?,
-                    created_at: row.get(4)?,
-                    updated_at: row.get(5)?,
+                    tag_names: tag_names_from_row(row.get(3)?),
+                    is_pinned: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
                 })
             })
             .map_err(|_| NoteError::ListFailed)?;
@@ -184,7 +192,7 @@ impl NotesRepository {
     }
 }
 
-fn content_preview(content: &str) -> String {
+pub fn content_preview(content: &str) -> String {
     let mut preview = String::new();
     let mut inside_tag = false;
     for character in content.chars() {
@@ -199,4 +207,12 @@ fn content_preview(content: &str) -> String {
         }
     }
     preview.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+pub fn tag_names_from_row(tag_names: String) -> Vec<String> {
+    tag_names
+        .split('\u{1f}')
+        .filter(|name| !name.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
 }

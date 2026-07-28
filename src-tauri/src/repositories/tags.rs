@@ -6,6 +6,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::domain::notes::NoteSummary;
 use crate::domain::settings::NoteSort;
 use crate::domain::tags::{RenameTagResult, TagError, TagMergePreview, TagSummary};
+use crate::repositories::notes::tag_names_from_row;
 
 pub struct TagsRepository;
 
@@ -227,7 +228,7 @@ impl TagsRepository {
             .collect::<Vec<_>>()
             .join(", ");
         let sql = format!(
-            "SELECT notes.id, notes.title, notes.content, notes.is_pinned, notes.created_at, notes.updated_at FROM notes JOIN note_tags ON note_tags.note_id = notes.id WHERE notes.is_deleted = 0 AND note_tags.tag_id IN ({placeholders}) GROUP BY notes.id HAVING COUNT(DISTINCT note_tags.tag_id) = ?{} ORDER BY notes.is_pinned DESC, {}",
+            "SELECT notes.id, notes.title, notes.content, COALESCE((SELECT group_concat(name, char(31)) FROM (SELECT tags.name FROM note_tags JOIN tags ON tags.id = note_tags.tag_id WHERE note_tags.note_id = notes.id ORDER BY tags.name COLLATE NOCASE ASC)), ''), notes.is_pinned, notes.created_at, notes.updated_at FROM notes JOIN note_tags ON note_tags.note_id = notes.id WHERE notes.is_deleted = 0 AND note_tags.tag_id IN ({placeholders}) GROUP BY notes.id HAVING COUNT(DISTINCT note_tags.tag_id) = ?{} ORDER BY notes.is_pinned DESC, {}",
             unique.len() + 1,
             note_sort.order_by_sql()
         );
@@ -249,9 +250,10 @@ impl TagsRepository {
                     id: row.get(0)?,
                     title: row.get(1)?,
                     content_preview: content_preview(&content),
-                    is_pinned: row.get(3)?,
-                    created_at: row.get(4)?,
-                    updated_at: row.get(5)?,
+                    tag_names: tag_names_from_row(row.get(3)?),
+                    is_pinned: row.get(4)?,
+                    created_at: row.get(5)?,
+                    updated_at: row.get(6)?,
                 })
             })
             .map_err(|_| TagError::OperationFailed)?;

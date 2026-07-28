@@ -7,6 +7,7 @@ use crate::domain::categories::{
 };
 use crate::domain::notes::NoteSummary;
 use crate::domain::settings::NoteSort;
+use crate::repositories::notes::tag_names_from_row;
 
 #[derive(Clone)]
 struct CategoryRecord {
@@ -313,13 +314,13 @@ impl CategoriesRepository {
         let sql = match category_id {
             Some(_) => {
                 format!(
-                    "WITH RECURSIVE descendants(id) AS (SELECT id FROM categories WHERE id = ?1 UNION ALL SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id) SELECT id, title, content, is_pinned, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IN descendants ORDER BY is_pinned DESC, {}",
+                    "WITH RECURSIVE descendants(id) AS (SELECT id FROM categories WHERE id = ?1 UNION ALL SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id) SELECT id, title, content, COALESCE((SELECT group_concat(name, char(31)) FROM (SELECT tags.name FROM note_tags JOIN tags ON tags.id = note_tags.tag_id WHERE note_tags.note_id = notes.id ORDER BY tags.name COLLATE NOCASE ASC)), ''), is_pinned, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IN descendants ORDER BY is_pinned DESC, {}",
                     note_sort.order_by_sql()
                 )
             }
             None => {
                 format!(
-                    "SELECT id, title, content, is_pinned, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IS NULL ORDER BY is_pinned DESC, {}",
+                    "SELECT id, title, content, COALESCE((SELECT group_concat(name, char(31)) FROM (SELECT tags.name FROM note_tags JOIN tags ON tags.id = note_tags.tag_id WHERE note_tags.note_id = notes.id ORDER BY tags.name COLLATE NOCASE ASC)), ''), is_pinned, created_at, updated_at FROM notes WHERE is_deleted = 0 AND category_id IS NULL ORDER BY is_pinned DESC, {}",
                     note_sort.order_by_sql()
                 )
             }
@@ -333,9 +334,10 @@ impl CategoriesRepository {
                 id: row.get(0)?,
                 title: row.get(1)?,
                 content_preview: content_preview(&content),
-                is_pinned: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                tag_names: tag_names_from_row(row.get(3)?),
+                is_pinned: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         };
         let rows = match category_id {

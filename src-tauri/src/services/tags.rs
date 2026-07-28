@@ -124,7 +124,9 @@ mod tests {
         )?;
         tags.set_note_tags(&second.id, std::slice::from_ref(&urgent.id))?;
         assert_eq!(tags.list_for_note(&first.id)?.len(), 2);
-        assert_eq!(tags.notes_by_tags(&[urgent.id, work.id])?.len(), 1);
+        let filtered_notes = tags.notes_by_tags(&[urgent.id, work.id])?;
+        assert_eq!(filtered_notes.len(), 1);
+        assert_eq!(filtered_notes[0].tag_names, ["工作", "紧急"]);
         Ok(())
     }
 }
