@@ -8,6 +8,8 @@ const entryPath = resolve(process.cwd(), 'src/main.ts')
 const entrySource = readFileSync(entryPath, 'utf8')
 const elementThemePath = resolve(process.cwd(), 'src/styles/element/index.scss')
 const elementThemeSource = readFileSync(elementThemePath, 'utf8')
+const elementDarkThemePath = resolve(process.cwd(), 'src/styles/element/dark.scss')
+const elementDarkThemeSource = readFileSync(elementDarkThemePath, 'utf8')
 const viteConfigPath = resolve(process.cwd(), 'vite.config.ts')
 const viteConfigSource = readFileSync(viteConfigPath, 'utf8')
 
@@ -25,6 +27,13 @@ describe('Element Plus 编程式服务样式', () => {
     )
     expect(elementThemeSource).toContain("'primary':")
     expect(elementThemeSource).toContain('$font-family:')
+    expect(elementDarkThemeSource).toContain(
+      "@forward 'element-plus/theme-chalk/src/dark/var.scss' with",
+    )
+    expect(elementDarkThemeSource).toContain(
+      "@use 'element-plus/theme-chalk/src/dark/css-vars.scss';",
+    )
+    expect(entrySource).toContain("import './styles/element/dark.scss'")
     expect(viteConfigSource).toContain("importStyle: 'sass'")
     expect(viteConfigSource).toContain(
       'additionalData: \'@use "@/styles/element/index.scss" as *;\'',

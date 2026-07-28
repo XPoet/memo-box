@@ -6,7 +6,16 @@ import type { SaveSettingsRequest, SettingsError, SettingsSnapshot } from '@/typ
 function applyAppearance(settings: SettingsSnapshot): void {
   const root = document.documentElement
   root.dataset.theme = settings.theme
+  root.classList.toggle('dark', settings.theme === 'dark' || isSystemDark(settings.theme))
   root.style.setProperty('--editor-font-size', `${settings.editorFontSize}px`)
+}
+
+function isSystemDark(theme: SettingsSnapshot['theme']): boolean {
+  return (
+    theme === 'system' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  )
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -15,6 +24,15 @@ export const useSettingsStore = defineStore('settings', () => {
   const isLoading = shallowRef(false)
   const isSaving = shallowRef(false)
   let loadingTask: Promise<void> | undefined
+  let systemThemeQuery: MediaQueryList | undefined
+
+  function observeSystemTheme(): void {
+    if (systemThemeQuery !== undefined || typeof window.matchMedia !== 'function') return
+    systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    systemThemeQuery.addEventListener('change', () => {
+      if (snapshot.value?.theme === 'system') applyAppearance(snapshot.value)
+    })
+  }
 
   function load(): Promise<void> {
     if (snapshot.value !== undefined) return Promise.resolve()
@@ -26,6 +44,7 @@ export const useSettingsStore = defineStore('settings', () => {
       .then((settings) => {
         snapshot.value = settings
         applyAppearance(settings)
+        observeSystemTheme()
       })
       .catch((failure: unknown) => {
         error.value = toSettingsError(failure)

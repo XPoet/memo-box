@@ -28,6 +28,7 @@ describe('settings store', () => {
     settingsService.saveSettings.mockReset()
     settingsService.toSettingsError.mockImplementation((error: unknown) => error)
     document.documentElement.removeAttribute('data-theme')
+    document.documentElement.classList.remove('dark')
     document.documentElement.style.removeProperty('--editor-font-size')
   })
 
@@ -39,7 +40,37 @@ describe('settings store', () => {
 
     expect(store.snapshot).toEqual(snapshot)
     expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
     expect(document.documentElement.style.getPropertyValue('--editor-font-size')).toBe('17px')
+  })
+
+  it('跟随系统时使用当前系统颜色模式更新 Element Plus 暗色 class', async () => {
+    let systemIsDark = true
+    const changeListeners: Array<() => void> = []
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({
+        get matches() {
+          return systemIsDark
+        },
+        addEventListener: (_event: 'change', listener: () => void) => {
+          changeListeners.push(listener)
+        },
+      }),
+    )
+    settingsService.getSettings.mockResolvedValue({ ...snapshot, theme: 'system' })
+    const store = useSettingsStore()
+
+    await store.load()
+
+    expect(document.documentElement.classList.contains('dark')).toBe(true)
+    expect(changeListeners).toHaveLength(1)
+
+    systemIsDark = false
+    changeListeners[0]?.()
+
+    expect(document.documentElement.classList.contains('dark')).toBe(false)
+    vi.unstubAllGlobals()
   })
 
   it('重复进入设置不会重复读取已经加载的快照', async () => {
