@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { InfoFilled } from '@element-plus/icons-vue'
 import { computed, shallowRef, watch } from 'vue'
+import ExportDirectoryPicker from './ExportDirectoryPicker.vue'
 import ExportScopeOption from './ExportScopeOption.vue'
+import ExportStatusPanel from './ExportStatusPanel.vue'
 import { useExportStore } from '@/stores/export'
 import type { ExportScope, ExportScopeOption as ExportScopeOptionType } from '@/types/export'
 
@@ -15,14 +18,15 @@ const emit = defineEmits<{
 
 const exportStore = useExportStore()
 const selectedScope = shallowRef<ExportScope>()
-const canClose = computed(() => exportStore.status !== 'exporting')
-const progressPercent = computed(() => {
-  const progress = exportStore.progress
-  if (progress === undefined || progress.total === 0) {
-    return 0
-  }
-  return Math.round((progress.processed / progress.total) * 100)
-})
+const canClose = computed(
+  () => exportStore.status !== 'exporting' && exportStore.status !== 'choosing',
+)
+const isConfigLocked = computed(
+  () => exportStore.status === 'exporting' || exportStore.status === 'choosing',
+)
+const canStart = computed(
+  () => selectedScope.value !== undefined && exportStore.targetDirectory !== undefined,
+)
 
 watch(
   () => props.modelValue,
@@ -32,6 +36,7 @@ watch(
       exportStore.reset()
     }
   },
+  { immediate: true },
 )
 
 watch(
@@ -60,8 +65,8 @@ function startExport(): void {
   }
 }
 
-function retry(): void {
-  startExport()
+function chooseDirectory(): void {
+  void exportStore.chooseDirectory()
 }
 </script>
 
@@ -69,90 +74,75 @@ function retry(): void {
   <el-dialog
     :model-value="modelValue"
     title="导出 Markdown"
-    width="min(620px, calc(100vw - 32px))"
+    class="export-dialog"
+    width="min(1024px, calc(100vw - 32px))"
     :close-on-click-modal="canClose"
     :close-on-press-escape="canClose"
     :show-close="canClose"
     @update:model-value="close"
   >
-    <section
-      v-if="exportStore.status === 'idle' || exportStore.status === 'choosing'"
-      class="export-config"
-    >
-      <p class="export-copy">选择导出范围后，再从系统目录选择器中指定存放位置。</p>
-      <div class="export-scope-list">
-        <ExportScopeOption
-          v-for="option in scopeOptions"
-          :key="`${option.scope.kind}:${option.scope.id}`"
-          :option="option"
-          :selected="
-            selectedScope?.kind === option.scope.kind && selectedScope.id === option.scope.id
-          "
-          @select="selectScope"
+    <div class="export-dialog-content">
+      <section class="export-config" aria-label="导出配置">
+        <div class="export-section">
+          <h2 class="export-section-title">导出范围</h2>
+          <div class="export-scope-list">
+            <ExportScopeOption
+              v-for="option in scopeOptions"
+              :key="`${option.scope.kind}:${option.scope.id}`"
+              :option="option"
+              :selected="
+                selectedScope?.kind === option.scope.kind && selectedScope.id === option.scope.id
+              "
+              :disabled="isConfigLocked"
+              @select="selectScope"
+            />
+          </div>
+        </div>
+
+        <div class="export-section">
+          <h2 class="export-section-title">导出目录</h2>
+          <ExportDirectoryPicker
+            :directory="exportStore.targetDirectory"
+            :is-choosing="exportStore.status === 'choosing'"
+            :disabled="isConfigLocked"
+            @choose="chooseDirectory"
+          />
+          <p class="export-directory-notice" role="note">
+            <el-icon><InfoFilled /></el-icon>
+            所有图片统一写入导出目录根目录下的 assets 文件夹，Markdown 使用相对路径引用。
+          </p>
+        </div>
+      </section>
+
+      <aside class="export-feedback" aria-label="导出状态反馈">
+        <h2 class="export-section-title">状态反馈</h2>
+        <ExportStatusPanel
+          :status="exportStore.status"
+          :progress="exportStore.progress"
+          :result="exportStore.result"
+          :error="exportStore.error"
+          :is-opening-directory="exportStore.isOpeningDirectory"
+          @choose-directory="chooseDirectory"
+          @open-directory="exportStore.openDirectory"
         />
-      </div>
-    </section>
 
-    <section
-      v-else-if="exportStore.status === 'exporting'"
-      class="export-progress"
-      aria-live="polite"
-    >
-      <p class="export-progress-title">正在导出 Markdown 与图片资源</p>
-      <div
-        class="export-progress-track"
-        role="progressbar"
-        :aria-valuemin="0"
-        :aria-valuemax="exportStore.progress?.total ?? 0"
-        :aria-valuenow="exportStore.progress?.processed ?? 0"
-      >
-        <span class="export-progress-bar" :style="{ inlineSize: `${progressPercent}%` }"></span>
-      </div>
-      <p class="export-progress-copy">
-        已处理 {{ exportStore.progress?.processed ?? 0 }}／{{ exportStore.progress?.total ?? 0 }} 篇
-        <template v-if="exportStore.progress?.currentTitle"
-          >：{{ exportStore.progress.currentTitle }}</template
+        <el-scrollbar
+          v-if="exportStore.result?.issues.length"
+          class="export-issues"
+          max-height="180px"
         >
-      </p>
-    </section>
-
-    <section
-      v-else-if="exportStore.status === 'completed'"
-      class="export-result"
-      aria-live="polite"
-    >
-      <p class="export-result-title">
-        {{ exportStore.result?.cancelled ? '导出已取消，已完成的内容已保留。' : '导出已完成。' }}
-      </p>
-      <p class="export-result-copy">
-        {{ exportStore.result?.directoryLabel }}：成功
-        {{ exportStore.result?.exportedCount ?? 0 }} 篇，失败
-        {{ exportStore.result?.failedCount ?? 0 }} 篇。
-      </p>
-      <el-scrollbar
-        v-if="exportStore.result?.issues.length"
-        class="export-issues"
-        max-height="180px"
-      >
-        <ul class="export-issues-list">
-          <li
-            v-for="issue in exportStore.result.issues"
-            :key="`${issue.code}:${issue.noteId ?? issue.title}`"
-          >
-            <strong>{{ issue.title }}</strong
-            >：{{ issue.message }}
-          </li>
-        </ul>
-      </el-scrollbar>
-      <p v-if="exportStore.error" class="export-error" role="alert">
-        {{ exportStore.error.message }}
-      </p>
-    </section>
-
-    <section v-else class="export-failure" role="alert">
-      <p class="export-error">{{ exportStore.error?.message }}</p>
-      <p class="export-copy">未完成的笔记不会影响此前已成功写入的文件。</p>
-    </section>
+          <ul class="export-issues-list">
+            <li
+              v-for="issue in exportStore.result.issues"
+              :key="`${issue.code}:${issue.noteId ?? issue.title}`"
+            >
+              <strong>{{ issue.title }}</strong
+              >：{{ issue.message }}
+            </li>
+          </ul>
+        </el-scrollbar>
+      </aside>
+    </div>
 
     <template #footer>
       <el-button
@@ -163,24 +153,15 @@ function retry(): void {
         取消导出
       </el-button>
       <template v-else-if="exportStore.status === 'completed'">
-        <el-button :loading="exportStore.isOpeningDirectory" @click="exportStore.openDirectory">
-          打开文件夹
-        </el-button>
         <el-button type="primary" @click="close">完成</el-button>
       </template>
       <template v-else-if="exportStore.status === 'failed'">
         <el-button @click="close">关闭</el-button>
-        <el-button type="primary" @click="retry">重新选择并导出</el-button>
       </template>
       <template v-else>
         <el-button @click="close">取消</el-button>
-        <el-button
-          type="primary"
-          :disabled="selectedScope === undefined"
-          :loading="exportStore.status === 'choosing'"
-          @click="startExport"
-        >
-          选择位置并导出
+        <el-button type="primary" :disabled="!canStart || isConfigLocked" @click="startExport">
+          开始导出
         </el-button>
       </template>
     </template>
@@ -188,29 +169,38 @@ function retry(): void {
 </template>
 
 <style scoped lang="scss">
-.export-config,
-.export-progress,
-.export-result,
-.export-failure {
+.export-dialog-content {
   display: grid;
-  gap: var(--space-12);
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.9fr);
+  gap: 38px;
 }
 
-.export-copy,
-.export-progress-title,
-.export-progress-copy,
-.export-result-title,
-.export-result-copy,
-.export-error {
+.export-config {
+  display: grid;
+  align-content: start;
+  gap: 30px;
+  min-inline-size: 0;
+}
+
+.export-feedback {
+  display: grid;
+  align-content: start;
+  gap: var(--space-16);
+  min-inline-size: 0;
+  padding-inline-start: 38px;
+  border-inline-start: 1px solid var(--color-border);
+}
+
+.export-section {
+  display: grid;
+  gap: var(--space-16);
+}
+
+.export-section-title {
   margin: 0;
-}
-
-.export-copy,
-.export-progress-copy,
-.export-result-copy {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: 1.6;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-weight: 650;
 }
 
 .export-scope-list {
@@ -218,25 +208,22 @@ function retry(): void {
   gap: var(--space-8);
 }
 
-.export-progress-title,
-.export-result-title {
-  color: var(--color-text-primary);
-  font-weight: 650;
+.export-directory-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-8);
+  background: color-mix(in srgb, #5b7a95 12%, var(--color-surface));
+  color: #496c88;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
 }
 
-.export-progress-track {
-  block-size: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--color-divider);
-}
-
-.export-progress-bar {
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: var(--color-accent);
-  transition: inline-size 160ms ease;
+.export-directory-notice .el-icon {
+  flex: 0 0 auto;
+  margin-block-start: 3px;
 }
 
 .export-issues {
@@ -255,8 +242,16 @@ function retry(): void {
   padding: var(--space-12) var(--space-16);
 }
 
-.export-error {
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
+@media (max-width: 760px) {
+  .export-dialog-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .export-feedback {
+    padding-block-start: var(--space-20);
+    padding-inline-start: 0;
+    border-block-start: 1px solid var(--color-border);
+    border-inline-start: 0;
+  }
 }
 </style>

@@ -33,7 +33,7 @@ describe('export store', () => {
     exportService.toExportError.mockImplementation((error: unknown) => error)
   })
 
-  it('选择目录后接收 Channel 进度和安全结果，不保留目标绝对路径', async () => {
+  it('选择目录后接收 Channel 进度和安全结果，并在当前会话复用目标目录', async () => {
     exportService.chooseExportDirectory.mockResolvedValue('/private/export-target')
     exportService.exportNotes.mockImplementation(
       (_request: unknown, onProgress: (value: typeof progress) => void) => {
@@ -43,6 +43,7 @@ describe('export store', () => {
     )
     const store = useExportStore()
 
+    await store.chooseDirectory()
     await store.start(scope)
 
     expect(exportService.exportNotes).toHaveBeenCalledWith(
@@ -53,6 +54,16 @@ describe('export store', () => {
     expect(store.progress).toEqual(progress)
     expect(store.result).toEqual(result)
     expect(JSON.stringify(store.result)).not.toContain('/private/export-target')
+    expect(store.targetDirectory).toBe('/private/export-target')
+  })
+
+  it('未选择目录时不会启动导出任务', async () => {
+    const store = useExportStore()
+
+    await store.start(scope)
+
+    expect(exportService.exportNotes).not.toHaveBeenCalled()
+    expect(store.status).toBe('idle')
   })
 
   it('取消时只向当前受控任务发送任务标识，并等待后端结果', async () => {
@@ -67,6 +78,7 @@ describe('export store', () => {
     exportService.cancelExport.mockResolvedValue(undefined)
     const store = useExportStore()
 
+    await store.chooseDirectory()
     const running = store.start(scope)
     await Promise.resolve()
     await store.cancel()

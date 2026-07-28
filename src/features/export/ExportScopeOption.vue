@@ -4,6 +4,7 @@ import type { ExportScopeOption as ExportScopeOptionType } from '@/types/export'
 defineProps<{
   option: ExportScopeOptionType
   selected: boolean
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,19 +18,20 @@ const emit = defineEmits<{
     :class="{ 'export-scope-option--selected': selected }"
     type="button"
     :aria-pressed="selected"
+    :disabled="disabled"
     @click="emit('select', option.scope)"
   >
     <strong class="export-scope-option-title">{{ option.title }}</strong>
-    <span class="export-scope-option-description">{{ option.description }}</span>
   </button>
 </template>
 
 <style scoped lang="scss">
 .export-scope-option {
+  position: relative;
   display: grid;
   gap: 4px;
   inline-size: 100%;
-  padding: var(--space-12);
+  padding: var(--space-16) var(--space-16) var(--space-16) 62px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-8);
   background: var(--color-surface);
@@ -47,13 +49,41 @@ const emit = defineEmits<{
   background: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
 }
 
-.export-scope-option-title {
-  font-size: var(--font-size-sm);
+.export-scope-option::before,
+.export-scope-option::after {
+  position: absolute;
+  inset-inline-start: var(--space-16);
+  inset-block-start: 50%;
+  border-radius: 50%;
+  content: '';
+  transform: translateY(-50%);
 }
 
-.export-scope-option-description {
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  line-height: 1.5;
+.export-scope-option::before {
+  inline-size: 20px;
+  block-size: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.export-scope-option--selected::before {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.export-scope-option--selected::after {
+  inset-inline-start: 23px;
+  inline-size: 6px;
+  block-size: 6px;
+  background: var(--color-surface);
+}
+
+.export-scope-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.export-scope-option-title {
+  font-size: var(--font-size-sm);
 }
 </style>

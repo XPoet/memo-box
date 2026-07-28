@@ -20,30 +20,39 @@ export const useExportStore = defineStore('export', () => {
   const progress = shallowRef<ExportProgress>()
   const result = shallowRef<ExportResult>()
   const error = shallowRef<ExportError>()
+  const targetDirectory = shallowRef<string>()
   const isCancelling = shallowRef(false)
   const isOpeningDirectory = shallowRef(false)
   let activeJobId: string | undefined
 
-  async function start(scope: ExportScope): Promise<void> {
-    reset()
+  async function chooseDirectory(): Promise<void> {
+    if (status.value === 'exporting' || status.value === 'choosing') {
+      return
+    }
     status.value = 'choosing'
-    let targetDirectory: string | undefined
+    error.value = undefined
     try {
-      targetDirectory = await chooseExportDirectory()
+      const directory = await chooseExportDirectory()
+      if (directory !== undefined) {
+        targetDirectory.value = directory
+      }
+      status.value = 'idle'
     } catch (failure: unknown) {
       status.value = 'failed'
       error.value = toExportError(failure)
-      return
     }
-    if (targetDirectory === undefined) {
-      status.value = 'idle'
+  }
+
+  async function start(scope: ExportScope): Promise<void> {
+    const directory = targetDirectory.value
+    if (directory === undefined || status.value !== 'idle') {
       return
     }
     const jobId = crypto.randomUUID()
     activeJobId = jobId
     status.value = 'exporting'
     try {
-      result.value = await exportNotes({ jobId, scope, targetDirectory }, updateProgress)
+      result.value = await exportNotes({ jobId, scope, targetDirectory: directory }, updateProgress)
       status.value = 'completed'
     } catch (failure: unknown) {
       status.value = 'failed'
@@ -89,6 +98,7 @@ export const useExportStore = defineStore('export', () => {
   }
 
   function reset(): void {
+    status.value = 'idle'
     progress.value = undefined
     result.value = undefined
     error.value = undefined
@@ -101,8 +111,10 @@ export const useExportStore = defineStore('export', () => {
     progress,
     result,
     error,
+    targetDirectory,
     isCancelling,
     isOpeningDirectory,
+    chooseDirectory,
     start,
     cancel,
     openDirectory,
