@@ -38,11 +38,6 @@
   box-shadow: 0 0 0 1px var(--color-border) inset;
 }
 
-.el-message-box__btns {
-  gap: var(--space-8);
-  padding: 0;
-}
-
 .el-message {
   border-color: var(--color-border);
   border-radius: var(--radius-8);

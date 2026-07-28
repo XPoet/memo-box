@@ -34,9 +34,9 @@ const updatedLabel = computed(() =>
         <el-icon><Folder /></el-icon>
         {{ result.categoryPath }}
       </span>
-      <span v-for="tagName in result.tagNames" :key="tagName" class="search-result-tag">
-        #{{ tagName }}
-      </span>
+      <el-tag v-for="tagName in result.tagNames" disable-transitions type="primary" size="small" :key="tagName" >
+        {{ tagName }}
+      </el-tag>
     </span>
   </button>
 </template>
@@ -117,12 +117,5 @@ const updatedLabel = computed(() =>
 
 .search-result-category .el-icon {
   flex: 0 0 auto;
-}
-
-.search-result-tag {
-  padding: 3px 7px;
-  border-radius: 7px;
-  background: var(--color-canvas);
-  color: var(--color-accent-active);
 }
 </style>

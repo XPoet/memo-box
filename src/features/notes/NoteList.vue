@@ -163,7 +163,7 @@ onBeforeUnmount(() => {
 
 .note-list-search :deep(.el-input__wrapper) {
   min-block-size: 38px;
-  background: var(--color-canvas);
+  background: var(--color-surface);
 }
 
 .note-list-items {

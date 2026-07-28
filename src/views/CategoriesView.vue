@@ -278,9 +278,6 @@ onMounted(() => {
               <el-button type="primary" :icon="View" @click="viewNotes(selectedCategory)">
                 查看笔记
               </el-button>
-              <el-button :icon="Download" @click="openExport(selectedCategory)">
-                导出 Markdown
-              </el-button>
               <el-button
                 :disabled="isSubmitting || selectedCategory.level >= 5"
                 :icon="Plus"
@@ -290,6 +287,9 @@ onMounted(() => {
               </el-button>
               <el-button :disabled="isSubmitting" :icon="EditPen" @click="rename(selectedCategory)">
                 重命名
+              </el-button>
+              <el-button :icon="Download" @click="openExport(selectedCategory)">
+                导出
               </el-button>
             </div>
             <div class="category-danger-zone">
@@ -512,7 +512,6 @@ onMounted(() => {
 .category-detail-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-8);
 }
 
 .category-danger-zone {

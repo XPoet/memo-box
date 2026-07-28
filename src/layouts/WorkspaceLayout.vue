@@ -35,7 +35,7 @@ const emit = defineEmits<{
 <style scoped lang="scss">
 .workspace-layout {
   display: grid;
-  grid-template-columns: 240px 340px minmax(0, 1fr);
+  grid-template-columns: 220px 320px minmax(0, 1fr);
   block-size: 100dvh;
   min-block-size: 0;
   overflow: hidden;

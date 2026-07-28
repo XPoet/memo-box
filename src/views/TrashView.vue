@@ -216,7 +216,6 @@ onMounted(() => {
 }
 
 .trash-empty p {
-  max-inline-size: 310px;
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
   line-height: 1.55;

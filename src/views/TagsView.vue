@@ -155,7 +155,7 @@ onMounted(() => {
     <p v-if="tagsStore.error" class="management-error" role="alert">
       {{ tagsStore.error.message }}
     </p>
-    <template v-else>
+    <section v-else class="tag-content">
       <section class="tag-stats">
         <article v-for="stat in tagStats" :key="stat.label" class="tag-stat-card">
           <p>{{ stat.label }}</p>
@@ -176,8 +176,8 @@ onMounted(() => {
         class="tag-empty"
         :description="query.trim() === '' ? '还没有标签' : '暂无匹配标签'"
       />
-      <el-scrollbar v-else class="tag-table-wrap">
-        <el-table :data="visibleTags" class="tag-table">
+      <section v-else class="tag-table-wrap">
+        <el-table :data="visibleTags" class="tag-table" height="100%" :native-scrollbar="false">
           <el-table-column label="标签" min-width="220">
             <template #default="{ row }">
               <span class="tag-name"><i aria-hidden="true"></i>{{ row.name }}</span>
@@ -218,8 +218,8 @@ onMounted(() => {
             </template>
           </el-table-column>
         </el-table>
-      </el-scrollbar>
-    </template>
+      </section>
+    </section>
   </ManagementLayout>
   <ExportDialog v-model="isExportDialogVisible" :scope-options="exportScopeOptions" />
 </template>
@@ -232,6 +232,13 @@ onMounted(() => {
 
 .management-error {
   color: var(--color-danger);
+}
+
+.tag-content {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  block-size: calc(100dvh - 140px);
+  min-block-size: 0;
 }
 
 .tag-stats {
@@ -268,10 +275,6 @@ onMounted(() => {
   margin-block: var(--space-16);
 }
 
-.tag-search {
-  max-inline-size: 380px;
-}
-
 .tag-search :deep(.el-input__wrapper) {
   min-block-size: 38px;
   background: var(--color-surface);
@@ -289,10 +292,12 @@ onMounted(() => {
 }
 
 .tag-table-wrap {
+  overflow: hidden;
   min-block-size: 0;
 }
 
 .tag-table {
+  block-size: 100%;
   --el-table-border-color: var(--color-divider);
   --el-table-header-bg-color: var(--color-surface);
   --el-table-row-hover-bg-color: var(--color-canvas);
@@ -341,7 +346,6 @@ onMounted(() => {
 .tag-row-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 2px;
   white-space: nowrap;
 }
 

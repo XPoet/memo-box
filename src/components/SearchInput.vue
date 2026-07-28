@@ -28,7 +28,7 @@ const emit = defineEmits<{
 
 <style scoped lang="scss">
 .search-input :deep(.el-input__wrapper) {
-  min-block-size: 48px;
-  background: var(--color-canvas);
+  min-block-size: 38px;
+  background: var(--color-surface);
 }
 </style>
