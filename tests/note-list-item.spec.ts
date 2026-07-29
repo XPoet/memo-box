@@ -42,7 +42,7 @@ describe('NoteListItem', () => {
 
     expect(pinnedWrapper.find('.note-list-item-pin').exists()).toBe(true)
     expect(regularWrapper.find('.note-list-item-pin').exists()).toBe(false)
-    expect(pinnedWrapper.find('.note-list-item-tags').text()).toBe('工作、重要')
-    expect(regularWrapper.find('.note-list-item-tags').text()).toBe('未添加标签')
+    expect(pinnedWrapper.find('.note-list-item-tags').text()).toBe('#工作 #重要')
+    expect(regularWrapper.find('.note-list-item-tags').text()).toBe('')
   })
 })

@@ -140,12 +140,10 @@ pnpm exec tauri build --debug
 ### macOS 自用 DMG
 
 ```bash
-pnpm check
-pnpm exec tauri build --bundles dmg --no-sign
-shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg
+pnpm tauri:build:dmg
 ```
 
-构建配置会先运行 `pnpm build`，再生成当前 Mac 的发行产物。`--no-sign` 明确跳过 Developer 签名；自用 DMG 位于 `src-tauri/target/release/bundle/dmg/`。双击 DMG，将 `MemoBox.app` 拖入“应用程序”文件夹后即可安装。
+该命令会先运行完整检查，再生成当前 Mac 的发行产物并输出 SHA-256 校验值。`--no-sign` 明确跳过 Developer 签名；自用 DMG 位于 `src-tauri/target/release/bundle/dmg/`。双击 DMG，将 `MemoBox.app` 拖入“应用程序”文件夹后即可安装。
 
 当前自用版本不签名、不公证，也不上传 App Store。若 macOS 对从外部位置复制的未签名应用显示 Gatekeeper 提示，在 Finder 中按住 Control 点按 `MemoBox.app`，选择“打开”并再次确认；不要通过关闭系统安全机制绕过提示。
 

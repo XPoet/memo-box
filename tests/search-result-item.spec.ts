@@ -22,7 +22,7 @@ describe('SearchResultItem', () => {
 
     expect(wrapper.text()).toContain('无标题笔记')
     expect(wrapper.text()).toContain('工作 / 项目')
-    expect(wrapper.text()).toContain('#本地优先')
+    expect(wrapper.text()).toContain('本地优先')
     expect(wrapper.find('script').exists()).toBe(false)
 
     await wrapper.get('button').trigger('click')

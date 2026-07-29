@@ -34,7 +34,13 @@ const updatedLabel = computed(() =>
         <el-icon><Folder /></el-icon>
         {{ result.categoryPath }}
       </span>
-      <el-tag v-for="tagName in result.tagNames" disable-transitions type="primary" size="small" :key="tagName" >
+      <el-tag
+        v-for="tagName in result.tagNames"
+        disable-transitions
+        type="primary"
+        size="small"
+        :key="tagName"
+      >
         {{ tagName }}
       </el-tag>
     </span>

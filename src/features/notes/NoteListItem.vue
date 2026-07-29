@@ -40,7 +40,9 @@ const updatedLabel = computed(() =>
     </span>
     <span class="note-list-item-preview">{{ note.contentPreview || '尚未记录内容' }}</span>
     <span class="note-list-item-meta">
-      <span  class="note-list-item-tags">{{ note.tagNames.map((x) => `#${x}`).join(' ') || ''}}</span>
+      <span class="note-list-item-tags">{{
+        note.tagNames.map((x) => `#${x}`).join(' ') || ''
+      }}</span>
       <span class="note-list-item-time">{{ updatedLabel }}</span>
     </span>
   </button>
