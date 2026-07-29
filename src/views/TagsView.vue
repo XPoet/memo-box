@@ -180,7 +180,7 @@ onMounted(() => {
         <el-table :data="visibleTags" class="tag-table" height="100%" :native-scrollbar="false">
           <el-table-column label="标签" min-width="220">
             <template #default="{ row }">
-              <span class="tag-name"><i aria-hidden="true"></i>{{ row.name }}</span>
+              <el-tag disable-transitions>{{ row.name }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="关联笔记" min-width="150">
@@ -312,31 +312,16 @@ onMounted(() => {
 }
 
 .tag-table :deep(.el-table__header-wrapper th.el-table__cell) {
-  block-size: 42px;
+  block-size: 52px;
   color: var(--color-text-muted);
-  font-size: 0.6875rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
 .tag-table :deep(.el-table__body-wrapper td.el-table__cell) {
-  block-size: 56px;
+  block-size: 50px;
   color: var(--color-text-primary);
-  font-size: 0.8125rem;
-}
-
-.tag-name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-8);
-  color: var(--color-text-primary);
-  font-weight: 600;
-}
-
-.tag-name i {
-  inline-size: 8px;
-  block-size: 8px;
-  border-radius: 50%;
-  background: var(--color-accent);
+  font-size: 0.7rem;
 }
 
 .tag-note-count {

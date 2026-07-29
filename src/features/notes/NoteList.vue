@@ -7,6 +7,7 @@ import type { NoteSummary } from '@/types/notes'
 
 const props = defineProps<{
   notes: NoteSummary[]
+  categoryName?: string
   selectedId?: string
   loading: boolean
   error?: string
@@ -45,6 +46,9 @@ const visibleRange = computed(() => {
 const renderedNotes = computed(() =>
   visibleNotes.value.slice(visibleRange.value.start, visibleRange.value.end),
 )
+const noteListTitle = computed(() =>
+  props.categoryName === undefined ? '全部笔记' : `${props.categoryName}笔记`,
+)
 const virtualHeight = computed(() => visibleNotes.value.length * itemHeight)
 const virtualOffset = computed(() => visibleRange.value.start * itemHeight)
 
@@ -71,7 +75,7 @@ onBeforeUnmount(() => {
   <section class="note-list">
     <header class="note-list-header">
       <div class="note-list-heading">
-        <h1 class="note-list-title">全部笔记</h1>
+        <h1 class="note-list-title">{{ noteListTitle }}</h1>
         <span class="note-list-count">{{ notes.length }}</span>
       </div>
       <el-input v-model="query" class="note-list-search" placeholder="搜索笔记">

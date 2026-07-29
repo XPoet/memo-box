@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { Delete, Document, Folder, Plus, PriceTag, Search, Setting } from '@element-plus/icons-vue'
+import {
+  Delete,
+  Document,
+  Folder,
+  MoreFilled,
+  Plus,
+  PriceTag,
+  Search,
+  Setting,
+} from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import type { CategoryNode } from '@/types/categories'
@@ -17,11 +26,21 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const activeRouteName = computed(() => route.name)
+const activeCategoryId = computed(() =>
+  typeof route.query.category === 'string' ? route.query.category : undefined,
+)
 const visibleCategories = computed(() => flattenCategories(props.categories))
 function isActive(
   name: 'workbench' | 'categories' | 'tags' | 'trash' | 'search' | 'settings',
 ): boolean {
+  if (name === 'workbench') {
+    return activeRouteName.value === name && activeCategoryId.value === undefined
+  }
   return activeRouteName.value === name
+}
+
+function isCategoryActive(categoryId: string): boolean {
+  return activeRouteName.value === 'workbench' && activeCategoryId.value === categoryId
 }
 
 function categoryIndent(category: CategoryNode): { paddingInlineStart: string } {
@@ -91,7 +110,7 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
           :class="{ 'sidebar-categories-manage--active': isActive('categories') }"
           to="/categories"
         >
-          <el-icon><Setting /></el-icon>
+          <el-icon><MoreFilled /></el-icon>
         </RouterLink>
       </div>
       <el-scrollbar v-if="visibleCategories.length > 0" class="sidebar-category-tree">
@@ -99,6 +118,7 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
           v-for="category in visibleCategories"
           :key="category.id"
           class="sidebar-category-item"
+          :class="{ 'sidebar-category-item--active': isCategoryActive(category.id) }"
           :style="categoryIndent(category)"
           :to="{ name: 'workbench', query: { category: category.id } }"
         >
@@ -277,6 +297,12 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
 
 .sidebar-category-item .el-icon {
   font-size: 0.875rem;
+}
+
+.sidebar-category-item--active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-weight: 650;
 }
 
 .sidebar-category-name {

@@ -17,6 +17,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { createTag, listNoteTags, setNoteTags } from '@/services/tags'
 import { setNoteCategory } from '@/services/categories'
 import { trashNote } from '@/services/trash'
+import type { CategoryNode } from '@/types/categories'
 import type { NoteDetail } from '@/types/notes'
 import type { ExportScopeOption } from '@/types/export'
 
@@ -45,9 +46,29 @@ const exportScopeOptions = computed<ExportScopeOption[]>(() => {
     },
   ]
 })
+const activeCategoryName = computed(() => {
+  const categoryId = typeof route.query.category === 'string' ? route.query.category : undefined
+  if (categoryId === undefined) {
+    return undefined
+  }
+  return findCategoryName(categoriesStore.categories, categoryId)
+})
 let unlistenCloseRequested: (() => void) | undefined
 let allowingWindowClose = false
 let isHandlingClose = false
+
+function findCategoryName(categories: CategoryNode[], categoryId: string): string | undefined {
+  for (const category of categories) {
+    if (category.id === categoryId) {
+      return category.name
+    }
+    const childName = findCategoryName(category.children, categoryId)
+    if (childName !== undefined) {
+      return childName
+    }
+  }
+  return undefined
+}
 
 const autoSave = useAutoSave(async () => {
   await notesStore.flush()
@@ -308,6 +329,7 @@ onBeforeUnmount(() => {
     <template #list>
       <NoteList
         :notes="notes"
+        :category-name="activeCategoryName"
         :selected-id="selectedNote?.id"
         :loading="isLoading"
         :error="error?.message"
