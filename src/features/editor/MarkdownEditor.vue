@@ -34,11 +34,33 @@ function insertText(text: string): void {
   view.focus()
 }
 
+function insertNewLine(): boolean {
+  insertText('\n')
+  return true
+}
+
 const { handlePaste } = useClipboardPaste({
   insertText,
   saveImage: props.saveImage,
   onError: (message) => emit('pasteError', message),
 })
+
+function handlePasteEvent(event: ClipboardEvent): boolean {
+  void handlePaste(event)
+  return true
+}
+
+function focusEditorWhenClickingBlankArea(event: MouseEvent): void {
+  const view = editorView.value
+  if (event.button !== 0 || view === undefined || !(event.target instanceof Node)) {
+    return
+  }
+  if (view.contentDOM.contains(event.target)) {
+    return
+  }
+  view.dispatch({ selection: { anchor: view.state.doc.length } })
+  view.focus()
+}
 
 function applyHistory(nextValue: string): void {
   const view = editorView.value
@@ -88,7 +110,14 @@ onMounted(() => {
       doc: props.modelValue,
       extensions: [
         EditorView.lineWrapping,
+        EditorView.domEventHandlers({
+          paste: handlePasteEvent,
+        }),
         keymap.of([
+          {
+            key: 'Enter',
+            run: insertNewLine,
+          },
           {
             key: 'Mod-z',
             run: undo,
@@ -115,9 +144,7 @@ onMounted(() => {
     }),
     parent: host,
   })
-  view.dom.addEventListener('paste', (event) => {
-    void handlePaste(event)
-  })
+  host.addEventListener('mousedown', focusEditorWhenClickingBlankArea)
   editorView.value = view
 })
 
@@ -135,6 +162,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  editorHost.value?.removeEventListener('mousedown', focusEditorWhenClickingBlankArea)
   editorView.value?.destroy()
 })
 </script>
