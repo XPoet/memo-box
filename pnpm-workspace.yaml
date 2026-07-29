@@ -1,0 +1,4 @@
+allowBuilds:
+  '@code-inspector/core': true
+  '@parcel/watcher': true
+  node-pty: true
