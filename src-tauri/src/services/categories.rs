@@ -183,4 +183,41 @@ mod tests {
         assert!(notes.get(&note.id).is_err());
         Ok(())
     }
+
+    #[test]
+    fn moves_category_subtree_and_keeps_notes_attached() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = data_directory();
+        BootstrapRepository::initialize(&directory.join("database").join("memobox.db"))?;
+        let categories = CategoriesService::new(&directory);
+        let source_root = categories.create("原分类", None)?;
+        let source_parent = categories.create("原父分类", Some(&source_root.id))?;
+        let moved = categories.create("待移动分类", Some(&source_parent.id))?;
+        let descendant = categories.create("子分类", Some(&moved.id))?;
+        let target_root = categories.create("目标分类", None)?;
+        let notes = NotesService::new(&directory);
+        let note = notes.create()?;
+        categories.set_note_category(&note.id, Some(&descendant.id))?;
+
+        categories.move_category(
+            &moved.id,
+            Some(&target_root.id),
+            std::slice::from_ref(&moved.id),
+        )?;
+
+        let moved_tree = categories.list()?;
+        let target = moved_tree
+            .iter()
+            .find(|category| category.id == target_root.id)
+            .ok_or("目标分类不存在")?;
+        let moved_after = target.children.first().ok_or("移动后的分类不存在")?;
+        let descendant_after = moved_after.children.first().ok_or("移动后的子分类不存在")?;
+        assert_eq!(moved_after.level, 2);
+        assert_eq!(descendant_after.level, 3);
+        assert_eq!(descendant_after.path, "目标分类 / 待移动分类 / 子分类");
+
+        let target_notes = categories.notes_by_category(Some(&target_root.id))?;
+        assert!(target_notes.iter().any(|summary| summary.id == note.id));
+        assert_eq!(notes.get(&note.id)?.category_id, Some(descendant.id));
+        Ok(())
+    }
 }

@@ -216,7 +216,25 @@ impl CategoriesRepository {
             Some(id),
         )?;
         let level_delta = target_level - current.1;
-        transaction.execute("UPDATE categories SET parent_id = ?2, level = level + ?3, updated_at = ?4 WHERE id = ?1", params![id, parent_id, level_delta, now]).map_err(|_| CategoryError::OperationFailed)?;
+        transaction
+            .execute(
+                "WITH RECURSIVE descendants(id) AS (
+                   SELECT id FROM categories WHERE id = ?1
+                   UNION ALL
+                   SELECT c.id FROM categories c JOIN descendants d ON c.parent_id = d.id
+                 )
+                 UPDATE categories
+                 SET level = level + ?2, updated_at = ?3
+                 WHERE id IN descendants",
+                params![id, level_delta, now],
+            )
+            .map_err(|_| CategoryError::OperationFailed)?;
+        transaction
+            .execute(
+                "UPDATE categories SET parent_id = ?2 WHERE id = ?1",
+                params![id, parent_id],
+            )
+            .map_err(|_| CategoryError::OperationFailed)?;
         reorder_siblings(&transaction, parent_id, ordered_ids, now)?;
         transaction
             .commit()

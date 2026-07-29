@@ -8,16 +8,21 @@ import {
   View,
   WarningFilled,
 } from '@element-plus/icons-vue'
-import { computed, onMounted, shallowRef } from 'vue'
+import { computed, onMounted, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type {
+  AllowDropType,
+  NodeDropType,
+  RenderContentContext,
+  TreeOptionProps,
+} from 'element-plus'
 import ManagementLayout from '@/layouts/ManagementLayout.vue'
 import ExportDialog from '@/features/export/ExportDialog.vue'
 import {
   createCategory,
   deleteCategory,
   getCategoryDeleteImpact,
-  moveCategory,
   renameCategory,
 } from '@/services/categories'
 import { useCategoriesStore } from '@/stores/categories'
@@ -25,12 +30,20 @@ import { useSettingsStore } from '@/stores/settings'
 import type { CategoryDeleteMode, CategoryNode } from '@/types/categories'
 import type { ExportScopeOption } from '@/types/export'
 
+type CategoryTreeNode = RenderContentContext['node']
+type SuccessfulNodeDropType = Exclude<NodeDropType, 'none'>
+
 const categoriesStore = useCategoriesStore()
 const settingsStore = useSettingsStore()
 const router = useRouter()
+const treeData = shallowRef<CategoryNode[]>([])
 const selectedCategory = shallowRef<CategoryNode>()
 const isSubmitting = shallowRef(false)
 const isExportDialogVisible = shallowRef(false)
+const treeProps: TreeOptionProps = {
+  children: 'children',
+  label: 'name',
+}
 const exportScopeOptions = computed<ExportScopeOption[]>(() => {
   const category = selectedCategory.value
   if (category === undefined) {
@@ -133,52 +146,79 @@ async function remove(category: CategoryNode): Promise<void> {
 }
 
 async function handleDrop(
-  draggingNode: { data: CategoryNode },
-  dropNode: { data: CategoryNode },
-  dropType: 'before' | 'after' | 'inner',
+  draggingNode: CategoryTreeNode,
+  dropNode: CategoryTreeNode,
+  dropType: SuccessfulNodeDropType,
 ): Promise<void> {
-  const parentId = dropType === 'inner' ? dropNode.data.id : dropNode.data.parentId
-  if (draggingNode.data.id === parentId) {
+  const parentNode = dropType === 'inner' ? dropNode : dropNode.parent
+  if (parentNode === null) {
+    treeData.value = cloneCategories(categoriesStore.categories)
     return
   }
-  const orderedIds = categoryChildren(parentId)
-    .filter((category) => category.id !== draggingNode.data.id)
-    .map((category) => category.id)
-  const matchingIndex = orderedIds.indexOf(dropNode.data.id)
-  const targetIndex = dropType === 'inner' ? orderedIds.length : Math.max(0, matchingIndex)
-  orderedIds.splice(dropType === 'after' ? targetIndex + 1 : targetIndex, 0, draggingNode.data.id)
+  const parentId = parentNode.level === 0 ? undefined : parentNode.data.id
+  const orderedIds = parentNode.childNodes.map((node) => node.data.id)
   isSubmitting.value = true
   try {
-    await moveCategory(draggingNode.data.id, parentId, orderedIds)
-    await categoriesStore.load()
+    await categoriesStore.move(draggingNode.data.id, parentId, orderedIds)
+    ElMessage.success('分类已移动')
   } catch (error: unknown) {
-    ElMessage.error(error instanceof Error ? error.message : '分类移动失败。')
-    await categoriesStore.load()
+    treeData.value = cloneCategories(categoriesStore.categories)
+    ElMessage.error(categoryErrorMessage(error))
   } finally {
     isSubmitting.value = false
   }
 }
 
 function allowDrop(
-  _draggingNode: { data: CategoryNode },
-  dropNode: { data: CategoryNode },
-  type: string,
+  draggingNode: CategoryTreeNode,
+  dropNode: CategoryTreeNode,
+  type: AllowDropType,
 ): boolean {
-  return type !== 'inner' || dropNode.data.level < 5
-}
-
-function categoryChildren(parentId?: string): CategoryNode[] {
-  if (parentId === undefined) {
-    return categoriesStore.categories
+  if (isSubmitting.value) {
+    return false
   }
-  return (
-    flattenCategories(categoriesStore.categories).find((category) => category.id === parentId)
-      ?.children ?? []
-  )
+  const targetLevel = type === 'inner' ? dropNode.level + 1 : dropNode.level
+  return targetLevel + categorySubtreeHeight(draggingNode.data) - 1 <= 5
 }
 
-function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
-  return categories.flatMap((category) => [category, ...flattenCategories(category.children)])
+function allowDrag(): boolean {
+  return !isSubmitting.value
+}
+
+function categorySubtreeHeight(category: CategoryNode): number {
+  return 1 + Math.max(0, ...category.children.map(categorySubtreeHeight))
+}
+
+function cloneCategories(categories: CategoryNode[]): CategoryNode[] {
+  return categories.map((category) => ({
+    ...category,
+    children: cloneCategories(category.children),
+  }))
+}
+
+function findCategory(categories: CategoryNode[], id: string): CategoryNode | undefined {
+  for (const category of categories) {
+    if (category.id === id) {
+      return category
+    }
+    const child = findCategory(category.children, id)
+    if (child !== undefined) {
+      return child
+    }
+  }
+  return undefined
+}
+
+function categoryErrorMessage(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message
+  }
+  return '分类移动失败。'
 }
 
 function viewNotes(category: CategoryNode): void {
@@ -193,6 +233,18 @@ function openExport(category: CategoryNode): void {
 function createNoteFromSidebar(): void {
   void router.push({ name: 'workbench', query: { create: '1' } })
 }
+
+watch(
+  () => categoriesStore.categories,
+  (categories) => {
+    treeData.value = cloneCategories(categories)
+    const selectedId = selectedCategory.value?.id
+    if (selectedId !== undefined) {
+      selectedCategory.value = findCategory(categories, selectedId)
+    }
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   void categoriesStore.load()
@@ -239,11 +291,13 @@ onMounted(() => {
           </header>
           <el-scrollbar class="category-tree">
             <el-tree
-              :data="categoriesStore.categories"
+              :data="treeData"
+              :props="treeProps"
               node-key="id"
-              draggable
+              :draggable="!isSubmitting"
               default-expand-all
               :expand-on-click-node="false"
+              :allow-drag="allowDrag"
               :allow-drop="allowDrop"
               @node-click="selectedCategory = $event"
               @node-drop="handleDrop"
@@ -288,9 +342,7 @@ onMounted(() => {
               <el-button :disabled="isSubmitting" :icon="EditPen" @click="rename(selectedCategory)">
                 重命名
               </el-button>
-              <el-button :icon="Download" @click="openExport(selectedCategory)">
-                导出
-              </el-button>
+              <el-button :icon="Download" @click="openExport(selectedCategory)"> 导出 </el-button>
             </div>
             <div class="category-danger-zone">
               <div>
@@ -310,7 +362,7 @@ onMounted(() => {
           </template>
           <div v-else class="category-detail-empty">
             <el-icon><Folder /></el-icon>
-            <p>从左侧选择一个分类以查看详情。</p>
+            <p>从左侧选择一个分类以查看详情</p>
           </div>
         </section>
       </section>
