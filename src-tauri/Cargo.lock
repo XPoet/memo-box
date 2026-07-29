@@ -3,6 +3,25 @@
 version = 4
 
 [[package]]
+name = "MemoBox"
+version = "0.0.3"
+dependencies = [
+ "image",
+ "rusqlite",
+ "serde",
+ "sha2",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-window-state",
+ "thiserror 2.0.19",
+ "time",
+ "uuid",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2119,25 +2138,6 @@ name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
-
-[[package]]
-name = "memo-box"
-version = "0.0.2"
-dependencies = [
- "image",
- "rusqlite",
- "serde",
- "sha2",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-window-state",
- "thiserror 2.0.19",
- "time",
- "uuid",
-]
 
 [[package]]
 name = "memoffset"

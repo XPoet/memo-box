@@ -1,7 +1,7 @@
 [package]
-name = "memo-box"
-version = "0.0.2"
-description = "纯本地 Markdown 笔记桌面应用"
+name = "MemoBox"
+version = "0.0.3"
+description = "纯本地笔记桌面应用"
 authors = ["MemoBox"]
 edition = "2024"
 rust-version = "1.85"

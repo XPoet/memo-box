@@ -53,6 +53,7 @@ Thumbs.db
 
 # 本地环境文件
 *.local
+.pnpm-store
 
 # Tauri 构建与自动生成文件
 src-tauri/target/
