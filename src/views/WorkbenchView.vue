@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { getNoteAssetHealth, savePastedImage, toAssetError } from '@/services/assets'
+import { exitApplication } from '@/services/window'
 import { useAutoSave } from '@/composables/useAutoSave'
 import NoteEditor from '@/features/editor/NoteEditor.vue'
 import ExportDialog from '@/features/export/ExportDialog.vue'
@@ -54,7 +55,6 @@ const activeCategoryName = computed(() => {
   return findCategoryName(categoriesStore.categories, categoryId)
 })
 let unlistenCloseRequested: (() => void) | undefined
-let allowingWindowClose = false
 let isHandlingClose = false
 
 function findCategoryName(categories: CategoryNode[], categoryId: string): string | undefined {
@@ -292,9 +292,6 @@ onMounted(async () => {
   window.addEventListener('keydown', handleKeyboardShortcut)
   try {
     unlistenCloseRequested = await getCurrentWindow().onCloseRequested(async (event) => {
-      if (allowingWindowClose) {
-        return
-      }
       event.preventDefault()
       if (isHandlingClose) {
         return
@@ -302,10 +299,9 @@ onMounted(async () => {
       isHandlingClose = true
       try {
         await autoSave.flush()
-        allowingWindowClose = true
-        await getCurrentWindow().close()
+        await exitApplication()
       } catch {
-        allowingWindowClose = false
+        ElMessage.error('笔记保存失败，已取消关闭。')
       } finally {
         isHandlingClose = false
       }

@@ -6,3 +6,8 @@ export async function showMainWindow(): Promise<void> {
     await invoke<void>('show_main_window')
   } catch {}
 }
+
+/** 在所有待保存内容落盘后退出应用，避免在关闭事件回调中递归关闭窗口。 */
+export async function exitApplication(): Promise<void> {
+  await invoke<void>('exit_application')
+}

@@ -1,6 +1,6 @@
 [package]
 name = "MemoBox"
-version = "0.0.4"
+version = "0.0.5"
 description = "纯本地笔记桌面应用"
 authors = ["MemoBox"]
 edition = "2024"

@@ -34,3 +34,8 @@ pub fn show_main_window(app: AppHandle) -> Result<(), BootstrapCommandError> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn exit_application(app: AppHandle) {
+    app.exit(0);
+}

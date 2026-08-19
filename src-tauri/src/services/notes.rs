@@ -135,4 +135,18 @@ mod tests {
         assert_eq!(service.list()?.len(), 1);
         Ok(())
     }
+
+    #[test]
+    fn saves_hyphenated_multiline_content() -> Result<(), Box<dyn std::error::Error>> {
+        let data_directory = data_directory();
+        BootstrapRepository::initialize(&data_directory.join("database").join("memobox.db"))?;
+        let service = NotesService::new(&data_directory);
+        let note = service.create()?;
+        let content = "9xxxx-2xxxx\naxxxx-cxxxx\n0xxxx-2xxxx\nbxxxx-acccc\n5xxxx-ccccc\ndcccc-5cccc\n8cccc-1cccc\n8cccc-aaaaa\n6cccc-aaaaa\n3cccc-0aaaa\nccccc-daaaa\nbcccc-6aaaa\ndaaaa-bcccc\nfcccc-1bbbb\neaaaa-8aaaa\ndaaaa-4aaaa";
+
+        let saved = service.save(&note.id, "", content)?;
+
+        assert_eq!(saved.content, content);
+        Ok(())
+    }
 }

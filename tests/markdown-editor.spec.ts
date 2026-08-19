@@ -19,7 +19,7 @@ function createPlainTextPasteEvent(text: string): ClipboardEvent {
 }
 
 describe('MarkdownEditor', () => {
-  it('仅处理一次纯文本粘贴，避免与 CodeMirror 内置粘贴重复插入', async () => {
+  it('由 CodeMirror 原生处理纯文本粘贴并同步模型值', async () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
         modelValue: '',
@@ -33,6 +33,23 @@ describe('MarkdownEditor', () => {
 
     expect(pasteEvent.defaultPrevented).toBe(true)
     expect(wrapper.emitted('update:modelValue')).toEqual([['粘贴文本']])
+    wrapper.unmount()
+  })
+
+  it('由 CodeMirror 原生粘贴多行连字符文本并同步模型值', async () => {
+    const content =
+      '9xxxx-2xxxx\naxxxx-cxxxx\n0xxxx-2xxxx\nbxxxx-acccc\n5xxxx-ccccc\ndcccc-5cccc\n8cccc-1cccc\n8cccc-aaaaa\n6cccc-aaaaa\n3cccc-0aaaa\nccccc-daaaa\nbcccc-6aaaa\ndaaaa-bcccc\nfcccc-1bbbb\neaaaa-8aaaa\ndaaaa-4aaaa'
+    const wrapper = mount(MarkdownEditor, {
+      props: {
+        modelValue: '',
+        saveImage: vi.fn(),
+      },
+    })
+
+    wrapper.find('.cm-content').element.dispatchEvent(createPlainTextPasteEvent(content))
+    await nextTick()
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[content]])
     wrapper.unmount()
   })
 

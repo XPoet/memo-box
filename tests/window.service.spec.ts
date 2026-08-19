@@ -4,7 +4,7 @@ const invoke = vi.hoisted(() => vi.fn())
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
 
-import { showMainWindow } from '@/services/window'
+import { exitApplication, showMainWindow } from '@/services/window'
 
 describe('window service', () => {
   it('只请求受控的主窗口显示命令', async () => {
@@ -19,5 +19,13 @@ describe('window service', () => {
     invoke.mockRejectedValue(new Error('Tauri IPC unavailable'))
 
     await expect(showMainWindow()).resolves.toBeUndefined()
+  })
+
+  it('通过受控原生命令退出应用', async () => {
+    invoke.mockResolvedValue(undefined)
+
+    await exitApplication()
+
+    expect(invoke).toHaveBeenCalledWith('exit_application')
   })
 })

@@ -46,8 +46,15 @@ const { handlePaste } = useClipboardPaste({
 })
 
 function handlePasteEvent(event: ClipboardEvent): boolean {
+  if (!hasClipboardImage(event.clipboardData)) {
+    return false
+  }
   void handlePaste(event)
   return true
+}
+
+function hasClipboardImage(clipboardData: DataTransfer | null): boolean {
+  return Array.from(clipboardData?.items ?? []).some((item) => item.type.startsWith('image/'))
 }
 
 function focusEditorWhenClickingBlankArea(event: MouseEvent): void {
