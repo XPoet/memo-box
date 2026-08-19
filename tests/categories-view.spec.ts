@@ -125,6 +125,7 @@ describe('CategoriesView', () => {
       'source',
     ])
     expect(wrapper.findAll('.sidebar-category-name').map((item) => item.text())).toEqual([
+      '未分类',
       'target',
       'existing',
       'source',
@@ -166,6 +167,7 @@ describe('CategoriesView', () => {
       'first',
     ])
     expect(wrapper.findAll('.sidebar-category-name').map((item) => item.text())).toEqual([
+      '未分类',
       'second',
       'first',
     ])

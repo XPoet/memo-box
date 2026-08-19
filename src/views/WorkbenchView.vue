@@ -18,7 +18,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { createTag, listNoteTags, setNoteTags } from '@/services/tags'
 import { setNoteCategory } from '@/services/categories'
 import { trashNote } from '@/services/trash'
-import type { CategoryNode } from '@/types/categories'
+import { UNCATEGORIZED_CATEGORY_ID, type CategoryNode } from '@/types/categories'
 import type { NoteDetail } from '@/types/notes'
 import type { ExportScopeOption } from '@/types/export'
 
@@ -51,6 +51,9 @@ const activeCategoryName = computed(() => {
   const categoryId = typeof route.query.category === 'string' ? route.query.category : undefined
   if (categoryId === undefined) {
     return undefined
+  }
+  if (categoryId === UNCATEGORIZED_CATEGORY_ID) {
+    return '未分类'
   }
   return findCategoryName(categoriesStore.categories, categoryId)
 })
@@ -100,7 +103,9 @@ watch(
     const categoryId = typeof category === 'string' ? category : undefined
     const tagIds = typeof tags === 'string' ? tags.split(',').filter(Boolean) : []
     if (categoryId !== undefined) {
-      await notesStore.loadByCategory(categoryId)
+      await notesStore.loadByCategory(
+        categoryId === UNCATEGORIZED_CATEGORY_ID ? undefined : categoryId,
+      )
     } else if (tagIds.length > 0) {
       await notesStore.loadByTags(tagIds)
     } else {

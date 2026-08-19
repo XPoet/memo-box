@@ -11,7 +11,7 @@ import {
 } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import type { CategoryNode } from '@/types/categories'
+import { UNCATEGORIZED_CATEGORY_ID, type CategoryNode } from '@/types/categories'
 
 const props = defineProps<{
   categories: CategoryNode[]
@@ -41,6 +41,10 @@ function isActive(
 
 function isCategoryActive(categoryId: string): boolean {
   return activeRouteName.value === 'workbench' && activeCategoryId.value === categoryId
+}
+
+function isUncategorizedActive(): boolean {
+  return isCategoryActive(UNCATEGORIZED_CATEGORY_ID)
 }
 
 function categoryIndent(category: CategoryNode): { paddingInlineStart: string } {
@@ -113,7 +117,15 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
           <el-icon><MoreFilled /></el-icon>
         </RouterLink>
       </div>
-      <el-scrollbar v-if="visibleCategories.length > 0" class="sidebar-category-tree">
+      <el-scrollbar class="sidebar-category-tree">
+        <RouterLink
+          class="sidebar-category-item"
+          :class="{ 'sidebar-category-item--active': isUncategorizedActive() }"
+          :to="{ name: 'workbench', query: { category: UNCATEGORIZED_CATEGORY_ID } }"
+        >
+          <el-icon><Folder /></el-icon>
+          <span class="sidebar-category-name">未分类</span>
+        </RouterLink>
         <RouterLink
           v-for="category in visibleCategories"
           :key="category.id"
@@ -129,7 +141,6 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
           }}</small>
         </RouterLink>
       </el-scrollbar>
-      <p v-else class="sidebar-category-empty">暂无分类</p>
     </section>
 
     <RouterLink
@@ -312,13 +323,6 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   white-space: nowrap;
 }
 
-.sidebar-category-empty {
-  margin: 0;
-  padding: 6px 8px;
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-}
-
 @media (max-width: 1100px) {
   .app-sidebar {
     padding-inline: var(--space-8);
@@ -333,8 +337,7 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   .sidebar-nav-item > span,
   .sidebar-nav-count,
   .sidebar-categories-heading > span,
-  .sidebar-category-name,
-  .sidebar-category-empty {
+  .sidebar-category-name {
     display: none;
   }
 

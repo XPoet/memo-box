@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 import AppSidebar from '@/layouts/AppSidebar.vue'
+import { UNCATEGORIZED_CATEGORY_ID } from '@/types/categories'
 
 const EmptyView = defineComponent({
   setup() {
@@ -74,6 +75,13 @@ describe('AppSidebar', () => {
     expect(hrefs).toContain(router.resolve({ name: 'search' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'settings' }).href)
     expect(hrefs).toContain(router.resolve({ name: 'workbench', query: { category: 'work' } }).href)
+    expect(hrefs).toContain(
+      router.resolve({
+        name: 'workbench',
+        query: { category: UNCATEGORIZED_CATEGORY_ID },
+      }).href,
+    )
+    expect(wrapper.get('.sidebar-category-item').text()).toContain('未分类')
     expect(wrapper.get('.sidebar-settings-item').attributes('href')).toBe(
       router.resolve({ name: 'settings' }).href,
     )
@@ -141,6 +149,20 @@ describe('AppSidebar', () => {
     expect(wrapper.text()).not.toContain('2')
     expect(wrapper.findAll('a').map((link) => link.attributes('href'))).toContain(
       router.resolve({ name: 'workbench', query: { category: 'work' } }).href,
+    )
+  })
+
+  it('进入未分类筛选时为未分类入口添加激活状态', async () => {
+    const router = createTestRouter()
+    await router.push({ name: 'workbench', query: { category: UNCATEGORIZED_CATEGORY_ID } })
+    await router.isReady()
+    const wrapper = mount(AppSidebar, {
+      props: { categories: [] },
+      global: { plugins: [router], stubs: { ElButton: ButtonStub, ElIcon: IconStub } },
+    })
+
+    expect(wrapper.get('.sidebar-category-item').classes()).toContain(
+      'sidebar-category-item--active',
     )
   })
 })

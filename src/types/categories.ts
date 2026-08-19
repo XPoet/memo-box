@@ -1,5 +1,7 @@
 import type { NoteSummary } from './notes'
 
+export const UNCATEGORIZED_CATEGORY_ID = 'uncategorized'
+
 export interface CategoryNode {
   id: string
   name: string
