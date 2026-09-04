@@ -152,6 +152,29 @@ describe('AppSidebar', () => {
     )
   })
 
+  it('分类数据刷新后立即显示最新笔记数量', async () => {
+    const router = createTestRouter()
+    await router.push('/')
+    await router.isReady()
+    const category = {
+      id: 'work',
+      name: '工作',
+      level: 1,
+      sortOrder: 0,
+      path: '工作',
+      noteCount: 2,
+      children: [],
+    }
+    const wrapper = mount(AppSidebar, {
+      props: { categories: [category] },
+      global: { plugins: [router], stubs: { ElButton: ButtonStub, ElIcon: IconStub } },
+    })
+
+    await wrapper.setProps({ categories: [{ ...category, noteCount: 3 }] })
+
+    expect(wrapper.get('.sidebar-category-item .sidebar-nav-count').text()).toBe('3')
+  })
+
   it('进入未分类筛选时为未分类入口添加激活状态', async () => {
     const router = createTestRouter()
     await router.push({ name: 'workbench', query: { category: UNCATEGORIZED_CATEGORY_ID } })

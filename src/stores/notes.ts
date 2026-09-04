@@ -125,13 +125,13 @@ export const useNotesStore = defineStore('notes', () => {
     await refreshNotes()
   }
 
-  async function create(): Promise<void> {
+  async function create(categoryId?: string): Promise<void> {
     await flush()
     const previousNote = selectedNote.value
     if (previousNote !== undefined) {
       await cleanupEmptyNote(previousNote.id)
     }
-    selectedNote.value = await createNote()
+    selectedNote.value = await createNote(categoryId)
     isDirty.value = false
     saveStatus.value = 'editing'
     error.value = undefined

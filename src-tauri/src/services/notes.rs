@@ -23,11 +23,16 @@ impl NotesService {
     }
 
     pub fn create(&self) -> Result<NoteDetail, NoteError> {
+        self.create_with_category(None)
+    }
+
+    pub fn create_with_category(&self, category_id: Option<&str>) -> Result<NoteDetail, NoteError> {
         let mut connection =
             open_database(&self.database_path).map_err(|_| NoteError::SaveFailed)?;
         let note = NotesRepository::create(
             &mut connection,
             &Uuid::new_v4().to_string(),
+            category_id,
             &current_time()?,
         )?;
         Ok(note)
@@ -104,6 +109,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use crate::repositories::bootstrap::BootstrapRepository;
+    use crate::services::categories::CategoriesService;
 
     use super::NotesService;
 
@@ -133,6 +139,13 @@ mod tests {
         assert_eq!(service.list()?[0].content_preview, "正文");
         service.cleanup_empty(&note.id)?;
         assert_eq!(service.list()?.len(), 1);
+
+        let category = CategoriesService::new(&data_directory).create("项目资料", None)?;
+        let categorized_note = service.create_with_category(Some(&category.id))?;
+        assert_eq!(
+            categorized_note.category_id.as_deref(),
+            Some(category.id.as_str())
+        );
         Ok(())
     }
 

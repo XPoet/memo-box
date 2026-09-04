@@ -50,8 +50,8 @@ async function call<T>(command: string, arguments_: Record<string, unknown> = {}
   }
 }
 
-export function createNote(): Promise<NoteDetail> {
-  return call<NoteDetail>('create_note')
+export function createNote(categoryId?: string): Promise<NoteDetail> {
+  return call<NoteDetail>('create_note', { categoryId })
 }
 
 export function listNotes(): Promise<NoteSummary[]> {

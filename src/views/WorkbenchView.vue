@@ -57,6 +57,10 @@ const activeCategoryName = computed(() => {
   }
   return findCategoryName(categoriesStore.categories, categoryId)
 })
+const activeCategoryId = computed(() => {
+  const categoryId = typeof route.query.category === 'string' ? route.query.category : undefined
+  return categoryId === UNCATEGORIZED_CATEGORY_ID ? undefined : categoryId
+})
 let unlistenCloseRequested: (() => void) | undefined
 let isHandlingClose = false
 
@@ -162,7 +166,8 @@ async function saveImage(bytes: Uint8Array): Promise<string> {
 async function handleCreate(): Promise<boolean> {
   try {
     await autoSave.flush()
-    await notesStore.create()
+    await notesStore.create(activeCategoryId.value)
+    await categoriesStore.load()
     return true
   } catch {
     return false

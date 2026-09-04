@@ -4,8 +4,15 @@ use crate::domain::notes::{NoteCommandError, NoteDetail, NoteSummary};
 use crate::services::notes::NotesService;
 
 #[tauri::command]
-pub async fn create_note(app: AppHandle) -> Result<NoteDetail, NoteCommandError> {
-    run_blocking(app, |service| service.create()).await
+pub async fn create_note(
+    app: AppHandle,
+    category_id: Option<String>,
+) -> Result<NoteDetail, NoteCommandError> {
+    run_blocking(app, move |service| match category_id.as_deref() {
+        Some(category_id) => service.create_with_category(Some(category_id)),
+        None => service.create(),
+    })
+    .await
 }
 
 #[tauri::command]

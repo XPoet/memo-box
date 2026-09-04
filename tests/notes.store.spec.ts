@@ -96,6 +96,24 @@ describe('notes store', () => {
     expect(store.selectedNote?.isPinned).toBe(true)
   })
 
+  it('新建笔记时将当前分类传递给创建服务', async () => {
+    const store = useNotesStore()
+    notesService.createNote.mockResolvedValue({
+      id: 'category-note',
+      title: '',
+      content: '',
+      categoryId: 'category-1',
+      isPinned: false,
+      createdAt: '2026-07-23T00:00:00Z',
+      updatedAt: '2026-07-23T00:00:00Z',
+    })
+
+    await store.create('category-1')
+
+    expect(notesService.createNote).toHaveBeenCalledWith('category-1')
+    expect(store.selectedNote?.categoryId).toBe('category-1')
+  })
+
   it('选择或保存分类笔记后持续刷新当前分类列表', async () => {
     const store = useNotesStore()
     const note = {

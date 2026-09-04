@@ -10,6 +10,7 @@ impl NotesRepository {
     pub fn create(
         connection: &mut Connection,
         id: &str,
+        category_id: Option<&str>,
         now: &str,
     ) -> Result<NoteDetail, NoteError> {
         let transaction = connection
@@ -17,8 +18,8 @@ impl NotesRepository {
             .map_err(|_| NoteError::SaveFailed)?;
         transaction
             .execute(
-                "INSERT INTO notes (id, created_at, updated_at) VALUES (?1, ?2, ?2)",
-                params![id, now],
+                "INSERT INTO notes (id, category_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?3)",
+                params![id, category_id, now],
             )
             .map_err(|_| NoteError::SaveFailed)?;
         SearchRepository::refresh_note_in_transaction(&transaction, id)
