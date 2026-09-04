@@ -100,17 +100,7 @@ watch(
 watch(
   () => [route.query.category, route.query.tags, route.query.note] as const,
   async ([category, tags, note]) => {
-    const categoryId = typeof category === 'string' ? category : undefined
-    const tagIds = typeof tags === 'string' ? tags.split(',').filter(Boolean) : []
-    if (categoryId !== undefined) {
-      await notesStore.loadByCategory(
-        categoryId === UNCATEGORIZED_CATEGORY_ID ? undefined : categoryId,
-      )
-    } else if (tagIds.length > 0) {
-      await notesStore.loadByTags(tagIds)
-    } else {
-      await notesStore.load()
-    }
+    await loadNotesForRoute(category, tags)
     if (typeof note === 'string' && notes.value.some((item) => item.id === note)) {
       await notesStore.selectNote(note)
     }
@@ -180,8 +170,24 @@ async function handleCreate(): Promise<boolean> {
 }
 
 async function handleLoad(): Promise<void> {
-  await notesStore.load()
+  await loadNotesForRoute(route.query.category, route.query.tags)
   await Promise.all([categoriesStore.load(), tagsStore.load()])
+}
+
+async function loadNotesForRoute(category: unknown, tags: unknown): Promise<void> {
+  const categoryId = typeof category === 'string' ? category : undefined
+  const tagIds = typeof tags === 'string' ? tags.split(',').filter(Boolean) : []
+  if (categoryId !== undefined) {
+    await notesStore.loadByCategory(
+      categoryId === UNCATEGORIZED_CATEGORY_ID ? undefined : categoryId,
+    )
+    return
+  }
+  if (tagIds.length > 0) {
+    await notesStore.loadByTags(tagIds)
+    return
+  }
+  await notesStore.load()
 }
 
 async function handleTrash(): Promise<void> {

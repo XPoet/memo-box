@@ -11,8 +11,12 @@ const notesService = vi.hoisted(() => ({
   saveRecoveryDraft: vi.fn(),
   toNoteError: vi.fn((error: unknown) => error),
 }))
+const categoriesService = vi.hoisted(() => ({
+  listNotesByCategory: vi.fn(),
+}))
 
 vi.mock('@/services/notes', () => notesService)
+vi.mock('@/services/categories', () => categoriesService)
 
 import { useNotesStore } from '@/stores/notes'
 
@@ -25,6 +29,7 @@ describe('notes store', () => {
       }
     }
     notesService.listNotes.mockResolvedValue([])
+    categoriesService.listNotesByCategory.mockReset()
   })
 
   it('保存失败时保留草稿并允许后续保存队列继续执行', async () => {
@@ -89,5 +94,43 @@ describe('notes store', () => {
 
     expect(notesService.setNotePinned).toHaveBeenCalledWith('note-1', true)
     expect(store.selectedNote?.isPinned).toBe(true)
+  })
+
+  it('选择或保存分类笔记后持续刷新当前分类列表', async () => {
+    const store = useNotesStore()
+    const note = {
+      id: 'category-note',
+      title: '分类笔记',
+      content: '正文',
+      categoryId: 'category-1',
+      isPinned: false,
+      createdAt: '2026-07-23T00:00:00Z',
+      updatedAt: '2026-07-23T00:00:00Z',
+    }
+    const summary = {
+      id: note.id,
+      title: note.title,
+      contentPreview: '正文',
+      tagNames: [],
+      isPinned: false,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+    }
+    const firstSummary = { ...summary, id: 'first-category-note', title: '首条分类笔记' }
+    const firstNote = { ...note, id: firstSummary.id, title: firstSummary.title }
+    categoriesService.listNotesByCategory.mockResolvedValue([firstSummary, summary])
+    notesService.getNote.mockImplementation((id: string) =>
+      Promise.resolve(id === note.id ? note : firstNote),
+    )
+    notesService.saveNote.mockResolvedValue({ ...note, title: '已编辑分类笔记' })
+
+    await store.loadByCategory('category-1')
+    await store.selectNote(note.id)
+    store.updateDraft({ title: '已编辑分类笔记', content: note.content })
+    await store.flush()
+
+    expect(categoriesService.listNotesByCategory).toHaveBeenCalledTimes(3)
+    expect(categoriesService.listNotesByCategory).toHaveBeenLastCalledWith('category-1')
+    expect(notesService.listNotes).not.toHaveBeenCalled()
   })
 })

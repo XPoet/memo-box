@@ -24,32 +24,17 @@ export const useNotesStore = defineStore('notes', () => {
   const isDirty = shallowRef(false)
   const revision = shallowRef(0)
   const isLoading = shallowRef(false)
+  let activeNotesFetcher: () => Promise<NoteSummary[]> = listNotes
   let saveQueue = Promise.resolve()
 
   const hasSelectedNote = computed(() => selectedNote.value !== undefined)
 
   async function refreshNotes(): Promise<void> {
-    notes.value = await listNotes()
+    notes.value = await activeNotesFetcher()
   }
 
   async function load(): Promise<void> {
-    isLoading.value = true
-    error.value = undefined
-    try {
-      await refreshNotes()
-      const firstNote = notes.value[0]
-      if (firstNote !== undefined) {
-        selectedNote.value = await getNote(firstNote.id)
-        saveStatus.value = 'saved'
-      }
-    } catch (failure: unknown) {
-      notes.value = []
-      selectedNote.value = undefined
-      saveStatus.value = 'failed'
-      error.value = toNoteError(failure)
-    } finally {
-      isLoading.value = false
-    }
+    await loadFiltered(listNotes)
   }
 
   async function loadByCategory(categoryId?: string): Promise<void> {
@@ -61,6 +46,7 @@ export const useNotesStore = defineStore('notes', () => {
   }
 
   async function loadFiltered(fetchNotes: () => Promise<NoteSummary[]>): Promise<void> {
+    activeNotesFetcher = fetchNotes
     isLoading.value = true
     error.value = undefined
     try {
