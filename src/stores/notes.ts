@@ -64,6 +64,23 @@ export const useNotesStore = defineStore('notes', () => {
     }
   }
 
+  /** 删除一条笔记后：保持当前筛选重新加载列表，并选中删除处相邻的下一条笔记。 */
+  async function reloadAfterTrash(trashedId: string): Promise<void> {
+    const removedIndex = notes.value.findIndex((item) => item.id === trashedId)
+    await loadFiltered(activeNotesFetcher)
+    const total = notes.value.length
+    if (total === 0) {
+      return
+    }
+    const targetIndex = Math.min(Math.max(removedIndex, 0), total - 1)
+    const target = notes.value[targetIndex]
+    if (target.id === selectedNote.value?.id) {
+      return
+    }
+    selectedNote.value = await getNote(target.id)
+    saveStatus.value = 'saved'
+  }
+
   function updateDraft(change: Pick<NoteDetail, 'title' | 'content'>): void {
     const note = selectedNote.value
     if (note === undefined) {
@@ -164,6 +181,7 @@ export const useNotesStore = defineStore('notes', () => {
     load,
     loadByCategory,
     loadByTags,
+    reloadAfterTrash,
     updateDraft,
     flush,
     selectNote,

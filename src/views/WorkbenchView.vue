@@ -217,7 +217,8 @@ async function handleTrash(): Promise<void> {
   await autoSave.flush()
   await trashNote(note.id)
   ElMessage.success('笔记已移入回收站。')
-  await notesStore.load()
+  await notesStore.reloadAfterTrash(note.id)
+  await categoriesStore.load()
 }
 
 async function handleExport(): Promise<void> {

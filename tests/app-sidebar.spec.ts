@@ -166,7 +166,7 @@ describe('AppSidebar', () => {
       children: [],
     }
     const wrapper = mount(AppSidebar, {
-      props: { categories: [category] },
+      props: { categories: [category], showCategoryCounts: true },
       global: { plugins: [router], stubs: { ElButton: ButtonStub, ElIcon: IconStub } },
     })
 

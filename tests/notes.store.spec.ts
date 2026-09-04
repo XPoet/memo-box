@@ -151,4 +151,121 @@ describe('notes store', () => {
     expect(categoriesService.listNotesByCategory).toHaveBeenLastCalledWith('category-1')
     expect(notesService.listNotes).not.toHaveBeenCalled()
   })
+
+  it('删除中间笔记后保持当前分类筛选，并自动选中相邻下一条', async () => {
+    const store = useNotesStore()
+    const createdAt = '2026-07-23T00:00:00Z'
+    const details = [
+      { id: 'a-note', title: '首条', content: '正文' },
+      { id: 'removed-note', title: '待删除', content: '正文' },
+      { id: 'tail-note', title: '末条', content: '正文' },
+    ].map((note) => ({
+      ...note,
+      categoryId: 'category-1',
+      isPinned: false,
+      createdAt,
+      updatedAt: createdAt,
+    }))
+    const toSummary = (detail: (typeof details)[number]) => ({
+      id: detail.id,
+      title: detail.title,
+      contentPreview: '正文',
+      tagNames: [],
+      isPinned: false,
+      createdAt: detail.createdAt,
+      updatedAt: detail.updatedAt,
+    })
+    const summaries = details.map(toSummary)
+    notesService.getNote.mockImplementation((id: string) => {
+      const matched = details.find((note) => note.id === id)
+      return Promise.resolve(matched ?? details[0])
+    })
+    categoriesService.listNotesByCategory.mockResolvedValue(summaries)
+
+    await store.loadByCategory('category-1')
+    expect(store.selectedNote?.id).toBe('a-note')
+
+    const remainingSummaries = summaries.filter((item) => item.id !== 'removed-note')
+    categoriesService.listNotesByCategory.mockResolvedValue(remainingSummaries)
+    await store.reloadAfterTrash('removed-note')
+
+    expect(categoriesService.listNotesByCategory).toHaveBeenLastCalledWith('category-1')
+    expect(notesService.listNotes).not.toHaveBeenCalled()
+    expect(store.notes.map((item) => item.id)).toEqual(['a-note', 'tail-note'])
+    expect(store.selectedNote?.id).toBe('tail-note')
+  })
+
+  it('删除末条笔记时自动选中相邻上一条', async () => {
+    const store = useNotesStore()
+    const createdAt = '2026-07-23T00:00:00Z'
+    const details = [
+      { id: 'a-note', title: '首条', content: '正文' },
+      { id: 'b-note', title: '中条', content: '正文' },
+      { id: 'removed-tail-note', title: '末条', content: '正文' },
+    ].map((note) => ({
+      ...note,
+      categoryId: 'category-1',
+      isPinned: false,
+      createdAt,
+      updatedAt: createdAt,
+    }))
+    const toSummary = (detail: (typeof details)[number]) => ({
+      id: detail.id,
+      title: detail.title,
+      contentPreview: '正文',
+      tagNames: [],
+      isPinned: false,
+      createdAt: detail.createdAt,
+      updatedAt: detail.updatedAt,
+    })
+    const summaries = details.map(toSummary)
+    notesService.getNote.mockImplementation((id: string) => {
+      const matched = details.find((note) => note.id === id)
+      return Promise.resolve(matched ?? details[0])
+    })
+    categoriesService.listNotesByCategory.mockResolvedValue(summaries)
+
+    await store.loadByCategory('category-1')
+    const remainingSummaries = summaries.filter((item) => item.id !== 'removed-tail-note')
+    categoriesService.listNotesByCategory.mockResolvedValue(remainingSummaries)
+    await store.reloadAfterTrash('removed-tail-note')
+
+    expect(store.notes.map((item) => item.id)).toEqual(['a-note', 'b-note'])
+    expect(store.selectedNote?.id).toBe('b-note')
+  })
+
+  it('删除列表中唯一条笔记后清空编辑器选中态', async () => {
+    const store = useNotesStore()
+    const createdAt = '2026-07-23T00:00:00Z'
+    const only = {
+      id: 'only-note',
+      title: '唯一一条',
+      content: '正文',
+      categoryId: 'category-1',
+      isPinned: false,
+      createdAt,
+      updatedAt: createdAt,
+    }
+    const onlySummary = {
+      id: only.id,
+      title: only.title,
+      contentPreview: '正文',
+      tagNames: [],
+      isPinned: false,
+      createdAt,
+      updatedAt: createdAt,
+    }
+    notesService.getNote.mockResolvedValue(only)
+    categoriesService.listNotesByCategory.mockResolvedValue([onlySummary])
+
+    await store.loadByCategory('category-1')
+    expect(store.selectedNote?.id).toBe('only-note')
+
+    categoriesService.listNotesByCategory.mockResolvedValue([])
+    await store.reloadAfterTrash('only-note')
+
+    expect(store.notes).toEqual([])
+    expect(store.selectedNote).toBeUndefined()
+    expect(store.saveStatus).toBe('idle')
+  })
 })
