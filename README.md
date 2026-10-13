@@ -88,6 +88,7 @@ pnpm tauri:dev
 | `pnpm test`         | 运行 Vitest 测试                             |
 | `pnpm build`        | 执行前端类型检查并构建静态资源               |
 | `pnpm tauri:build`  | 构建 Tauri 原生发行包                        |
+| `pnpm release`      | 递增补丁版本、检查、生成 DMG 并创建版本提交  |
 | `pnpm check`        | 运行完整前端与 Rust 质量门                   |
 
 可针对当前启动闭环运行聚焦验证：
@@ -120,6 +121,22 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
 ## 构建与打包
+
+### 发布新版本
+
+先提交当前开发改动，确保 Git 工作区没有未提交或未跟踪的文件，再执行：
+
+```bash
+pnpm release --dry-run # 预览下一补丁版本，不修改文件或创建提交
+pnpm release           # 默认递增 patch，例如 0.0.7 → 0.0.8
+pnpm release minor     # 递增 minor，例如 0.0.7 → 0.1.0
+pnpm release major     # 递增 major，例如 0.0.7 → 1.0.0
+pnpm release 1.2.3     # 指定高于当前版本的正式版本号
+```
+
+发布命令同步 `package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 和 `src-tauri/Cargo.lock` 中 MemoBox 自身的版本，不修改依赖版本或 pnpm 锁文件。随后调用 `pnpm tauri:build:dmg`，执行完整前端与 Rust 质量检查、生成当前 Mac 的未签名 DMG 并输出 SHA-256 校验值。全部成功后，仅暂存上述四个版本文件，自动创建 `chore(release): v版本号` Git 提交。
+
+命令不会创建 Git 标签、推送远程或上传产物。检查或打包失败时，版本改动保留在工作区，不自动提交；先用 `git diff` 检查失败状态，修复问题并将四个版本文件恢复到发布前的版本，提交修复后重新执行。若 Git 提交阶段失败，先检查 `git status` 中的暂存内容，再处理 Git 报错。
 
 ### 前端构建
 

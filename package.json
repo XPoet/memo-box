@@ -9,6 +9,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:dmg": "pnpm check && pnpm exec tauri build --bundles dmg --no-sign && shasum -a 256 src-tauri/target/release/bundle/dmg/*.dmg",
+    "release": "node scripts/release.mjs",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "lint": "oxlint --type-aware",
