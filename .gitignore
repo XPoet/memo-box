@@ -67,3 +67,5 @@ src-tauri/icons/*
 
 # Vite 自动导入缓存
 auto-imports.d.ts
+
+.playwright-mcp/

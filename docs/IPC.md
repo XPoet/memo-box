@@ -122,7 +122,7 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 
 ### `read_note_image`
 
-请求：`{ noteId: string, relativePath: string }`。仅接受当前未删除笔记已关联的 `assets/{file-name}` 资源。Rust 在阻塞线程中验证数据库关联、受控相对路径和规范化后的资源目录范围，拒绝越界路径及指向目录外的符号链接，并校验文件头为支持的图片格式。成功以二进制 `ArrayBuffer` 返回原始图片字节，不公开本机绝对路径。
+请求：`{ noteId: string, relativePath: string }`。仅接受当前未删除笔记已关联的 `assets/{file-name}` 资源。Rust 在阻塞线程中验证数据库关联、受控相对路径和规范化后的资源目录范围，拒绝越界路径及指向目录外的符号链接，并校验文件头为支持的图片格式。成功通过 `tauri::ipc::Response` 返回原始图片字节，不公开本机绝对路径。前端收到的数据由 IPC 通道决定：macOS 的 postMessage 通道返回数字数组，其他通道可返回 `ArrayBuffer`；Service 必须先将数字数组转换为 `Uint8Array`，再创建 Blob，以保留原始图片字节。
 
 前端 Service 将字节转换为 Blob URL。CodeMirror 在正文的本地 Markdown 图片引用所在行直接显示图片，随正文一起滚动；点击可放大、缩放、旋转和切换图片，Esc 关闭。切换笔记、移除图片引用或组件卸载时释放 Blob URL；读取失败显示“图片无法读取”，保留正文引用。CSP 仅为图片增加 `blob:` 来源，不开放通用文件系统权限。
 

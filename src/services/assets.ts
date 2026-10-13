@@ -57,7 +57,12 @@ export async function getNoteAssetHealth(noteId: string): Promise<AssetHealth> {
 
 export async function loadNoteImage(noteId: string, relativePath: string): Promise<string> {
   try {
-    const bytes = await invoke<ArrayBuffer>('read_note_image', { noteId, relativePath })
+    const response = await invoke<ArrayBuffer | number[]>('read_note_image', {
+      noteId,
+      relativePath,
+    })
+    // macOS 的 postMessage IPC 返回数字数组，其他 IPC 通道可返回 ArrayBuffer。
+    const bytes = Array.isArray(response) ? new Uint8Array(response) : response
     const extension = relativePath.split('.').pop()?.toLowerCase()
     const mimeType =
       extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' : `image/${extension}`

@@ -11,9 +11,11 @@ describe('本地图片读取 Service', () => {
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL }))
   })
 
-  it('通过受控命令读取二进制图片并创建正确类型的 Blob URL', async () => {
-    const bytes = new Uint8Array([1, 2, 3]).buffer
-    vi.mocked(invoke).mockResolvedValue(bytes)
+  it.each(['ArrayBuffer', 'macOS 数字数组'])('将 %s 响应保留为原始图片字节', async (transport) => {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 255, 128])
+    vi.mocked(invoke).mockResolvedValue(
+      transport === 'ArrayBuffer' ? bytes.buffer : Array.from(bytes),
+    )
     expect(await loadNoteImage('note', 'assets/a.jpg')).toBe('blob:preview')
     expect(invoke).toHaveBeenCalledWith('read_note_image', {
       noteId: 'note',
@@ -23,7 +25,17 @@ describe('本地图片读取 Service', () => {
     expect(blob).toBeInstanceOf(Blob)
     if (blob instanceof Blob) {
       expect(blob.type).toBe('image/jpeg')
-      expect(blob.size).toBe(3)
+      expect(blob.size).toBe(bytes.byteLength)
+      const content = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          if (reader.result instanceof ArrayBuffer) resolve(reader.result)
+          else reject(new Error('未读取到二进制 Blob'))
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsArrayBuffer(blob)
+      })
+      expect(new Uint8Array(content)).toEqual(bytes)
     }
   })
 
