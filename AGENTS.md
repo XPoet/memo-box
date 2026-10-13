@@ -54,7 +54,6 @@ SQLite / 文件系统
 ## Vue 与样式规则
 
 - 统一使用 Composition API 和 `<script setup lang="ts">`。
-- 禁止 Options API。
 - 禁止滥用 `any`、非空断言和类型断言。
 - Props、Emits 和 Service 返回值必须有明确类型。
 - 页面放在 `src/views/`。
@@ -65,7 +64,6 @@ SQLite / 文件系统
 - 可复用逻辑放在 `src/composables/`。
 - Markdown 编辑器必须使用 CodeMirror 6。
 - 基础组件优先使用 Element Plus。
-- 使用 SCSS，组件样式默认使用 `scoped`。
 - 全局变量和主题统一放在 `src/styles/`。
 - Element Plus 样式覆盖必须集中维护。
 
@@ -117,10 +115,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ## 修改范围与完成标准
 
 - 只修改完成当前任务必需的文件。
-- 不得擅自扩展 PRD 未要求的功能。
 - 优先复用现有组件、类型、Service 和工具函数。
 - 新增依赖前必须确认现有依赖无法满足需求。
 - 修改公共接口、数据库结构或目录约定时，必须同步修改调用方、测试和文档。
-- 修复缺陷时必须补充回归测试。
 - Tauri 相关修改至少完成当前平台构建验证。
-- 最终回复必须说明修改内容、验证命令及未解决问题。
