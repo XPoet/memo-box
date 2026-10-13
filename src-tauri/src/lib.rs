@@ -41,6 +41,7 @@ pub fn run() -> Result<(), tauri::Error> {
             commands::export::open_export_directory,
             commands::assets::save_pasted_image,
             commands::assets::get_note_asset_health,
+            commands::assets::read_note_image,
             commands::categories::list_categories,
             commands::categories::create_category,
             commands::categories::rename_category,

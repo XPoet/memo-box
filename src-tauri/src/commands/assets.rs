@@ -23,6 +23,19 @@ pub async fn get_note_asset_health(
     run_blocking(app, move |service| service.health(&note_id)).await
 }
 
+#[tauri::command]
+pub async fn read_note_image(
+    app: AppHandle,
+    note_id: String,
+    relative_path: String,
+) -> Result<tauri::ipc::Response, AssetCommandError> {
+    let bytes = run_blocking(app, move |service| {
+        service.read_note_image(&note_id, &relative_path)
+    })
+    .await?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 async fn run_blocking<T, F>(app: AppHandle, task: F) -> Result<T, AssetCommandError>
 where
     T: Send + 'static,

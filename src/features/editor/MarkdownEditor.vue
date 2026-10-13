@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useClipboardPaste } from './useClipboardPaste'
+import NoteImageViewer from './NoteImageViewer.vue'
+import { imagePreviews, refreshImagePreviews } from './imagePreviews'
+import { useNoteImages } from '@/composables/useNoteImages'
 
 const props = defineProps<{
   modelValue: string
+  noteId: string
   saveImage: (bytes: Uint8Array) => Promise<string>
 }>()
 
@@ -16,6 +20,12 @@ const emit = defineEmits<{
 
 const editorHost = useTemplateRef<HTMLDivElement>('editorHost')
 const editorView = shallowRef<EditorView>()
+const editorContent = ref(props.modelValue)
+const { images } = useNoteImages(
+  () => props.noteId,
+  () => editorContent.value,
+)
+const previewPath = ref<string>()
 let synchronizing = false
 let applyingHistory = false
 const undoStack: string[] = []
@@ -117,6 +127,16 @@ onMounted(() => {
       doc: props.modelValue,
       extensions: [
         EditorView.lineWrapping,
+        imagePreviews(
+          () => images.value,
+          (path) => {
+            previewPath.value = path
+          },
+          (path) => {
+            const image = images.value.find((item) => item.relativePath === path)
+            if (image !== undefined) image.failed = true
+          },
+        ),
         EditorView.domEventHandlers({
           paste: handlePasteEvent,
         }),
@@ -139,6 +159,7 @@ onMounted(() => {
           },
         ]),
         EditorView.updateListener.of((update) => {
+          if (update.docChanged) editorContent.value = update.state.doc.toString()
           if (update.docChanged && !synchronizing) {
             if (!applyingHistory) {
               undoStack.push(update.startState.doc.toString())
@@ -168,6 +189,14 @@ watch(
   },
 )
 
+watch(
+  images,
+  () => {
+    editorView.value?.dispatch({ effects: refreshImagePreviews.of(null) })
+  },
+  { deep: true },
+)
+
 onBeforeUnmount(() => {
   editorHost.value?.removeEventListener('mousedown', focusEditorWhenClickingBlankArea)
   editorView.value?.destroy()
@@ -175,7 +204,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="editorHost" class="markdown-editor"></div>
+  <div ref="editorHost" class="markdown-editor">
+    <NoteImageViewer
+      :images="images"
+      :preview-path="previewPath"
+      @close="previewPath = undefined"
+    />
+  </div>
 </template>
 
 <style scoped lang="scss">
@@ -234,5 +269,39 @@ onBeforeUnmount(() => {
 
 .markdown-editor :deep(.cm-focused) {
   outline: none;
+}
+
+.markdown-editor :deep(.cm-image-preview) {
+  padding-block: var(--space-8) var(--space-16);
+}
+
+.markdown-editor :deep(.cm-image-preview button) {
+  display: block;
+  max-inline-size: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-8);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: zoom-in;
+}
+
+.markdown-editor :deep(.cm-image-preview button:disabled) {
+  padding: var(--space-12);
+  cursor: default;
+}
+
+.markdown-editor :deep(.cm-image-preview button:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.markdown-editor :deep(.cm-image-preview img) {
+  display: block;
+  max-inline-size: 100%;
+  max-block-size: 360px;
+  object-fit: contain;
 }
 </style>

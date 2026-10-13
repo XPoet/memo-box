@@ -14,6 +14,7 @@ const assetErrorCodes: AssetErrorCode[] = [
   'ASSET_STORAGE_UNAVAILABLE',
   'ASSET_WRITE_FAILED',
   'ASSET_SAVE_FAILED',
+  'ASSET_READ_FAILED',
 ]
 
 function isTauriErrorPayload(value: unknown): value is TauriErrorPayload {
@@ -49,6 +50,18 @@ export async function savePastedImage(noteId: string, bytes: Uint8Array): Promis
 export async function getNoteAssetHealth(noteId: string): Promise<AssetHealth> {
   try {
     return await invoke<AssetHealth>('get_note_asset_health', { noteId })
+  } catch (error: unknown) {
+    throw toAssetError(error)
+  }
+}
+
+export async function loadNoteImage(noteId: string, relativePath: string): Promise<string> {
+  try {
+    const bytes = await invoke<ArrayBuffer>('read_note_image', { noteId, relativePath })
+    const extension = relativePath.split('.').pop()?.toLowerCase()
+    const mimeType =
+      extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' : `image/${extension}`
+    return URL.createObjectURL(new Blob([bytes], { type: mimeType }))
   } catch (error: unknown) {
     throw toAssetError(error)
   }

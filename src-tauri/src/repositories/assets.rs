@@ -5,6 +5,25 @@ use crate::domain::assets::{AssetError, AssetHealth, SavedAsset};
 pub struct AssetsRepository;
 
 impl AssetsRepository {
+    pub fn is_linked(
+        connection: &Connection,
+        note_id: &str,
+        relative_path: &str,
+    ) -> Result<bool, AssetError> {
+        connection
+            .query_row(
+                "SELECT 1 FROM assets
+                 INNER JOIN note_assets ON note_assets.asset_id = assets.id
+                 INNER JOIN notes ON notes.id = note_assets.note_id
+                 WHERE notes.id = ?1 AND notes.is_deleted = 0 AND assets.relative_path = ?2",
+                params![note_id, relative_path],
+                |_| Ok(()),
+            )
+            .optional()
+            .map(|value| value.is_some())
+            .map_err(|_| AssetError::ReadFailed)
+    }
+
     pub fn pending_cleanup_paths(connection: &Connection) -> Result<Vec<String>, AssetError> {
         let mut statement = connection
             .prepare(

@@ -19,6 +19,7 @@ export type AssetErrorCode =
   | 'ASSET_STORAGE_UNAVAILABLE'
   | 'ASSET_WRITE_FAILED'
   | 'ASSET_SAVE_FAILED'
+  | 'ASSET_READ_FAILED'
 
 export interface AssetError {
   code: AssetErrorCode

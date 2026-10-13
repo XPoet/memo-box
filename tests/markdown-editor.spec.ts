@@ -22,6 +22,7 @@ describe('MarkdownEditor', () => {
   it('由 CodeMirror 原生处理纯文本粘贴并同步模型值', async () => {
     const wrapper = mount(MarkdownEditor, {
       props: {
+        noteId: 'note',
         modelValue: '',
         saveImage: vi.fn(),
       },
@@ -41,6 +42,7 @@ describe('MarkdownEditor', () => {
       '9xxxx-2xxxx\naxxxx-cxxxx\n0xxxx-2xxxx\nbxxxx-acccc\n5xxxx-ccccc\ndcccc-5cccc\n8cccc-1cccc\n8cccc-aaaaa\n6cccc-aaaaa\n3cccc-0aaaa\nccccc-daaaa\nbcccc-6aaaa\ndaaaa-bcccc\nfcccc-1bbbb\neaaaa-8aaaa\ndaaaa-4aaaa'
     const wrapper = mount(MarkdownEditor, {
       props: {
+        noteId: 'note',
         modelValue: '',
         saveImage: vi.fn(),
       },
@@ -57,6 +59,7 @@ describe('MarkdownEditor', () => {
     const wrapper = mount(MarkdownEditor, {
       attachTo: document.body,
       props: {
+        noteId: 'note',
         modelValue: '已有内容',
         saveImage: vi.fn(),
       },

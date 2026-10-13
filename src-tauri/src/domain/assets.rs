@@ -34,6 +34,8 @@ pub enum AssetError {
     WriteFailed,
     #[error("图片资源保存失败。")]
     SaveFailed,
+    #[error("图片资源无法读取。")]
+    ReadFailed,
 }
 
 #[derive(Debug, Serialize)]
@@ -63,6 +65,7 @@ impl From<AssetError> for AssetCommandError {
             ),
             AssetError::WriteFailed => ("ASSET_WRITE_FAILED", "图片写入失败，未插入图片引用。"),
             AssetError::SaveFailed => ("ASSET_SAVE_FAILED", "图片资源保存失败，未插入图片引用。"),
+            AssetError::ReadFailed => ("ASSET_READ_FAILED", "图片无法读取，资源缺失或文件无效。"),
         };
         Self { code, message }
     }

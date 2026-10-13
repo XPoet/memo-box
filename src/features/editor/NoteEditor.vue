@@ -123,6 +123,7 @@ defineExpose({ focusEditor })
         <MarkdownEditor
           ref="markdownEditor"
           :key="note.id"
+          :note-id="note.id"
           class="note-editor-markdown"
           :model-value="note.content"
           :save-image="saveImage"

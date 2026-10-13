@@ -72,6 +72,39 @@ impl AssetsService {
         AssetsRepository::health(&connection, &self.assets_directory, note_id)
     }
 
+    pub fn read_note_image(
+        &self,
+        note_id: &str,
+        relative_path: &str,
+    ) -> Result<Vec<u8>, AssetError> {
+        let connection =
+            open_database(&self.database_path).map_err(|_| AssetError::StorageUnavailable)?;
+        if !AssetsRepository::is_linked(&connection, note_id, relative_path)? {
+            return Err(AssetError::ReadFailed);
+        }
+        let path = controlled_asset_path(&self.assets_directory, relative_path)
+            .map_err(|_| AssetError::ReadFailed)?;
+        let directory = self
+            .assets_directory
+            .canonicalize()
+            .map_err(|_| AssetError::ReadFailed)?;
+        let path = path.canonicalize().map_err(|_| AssetError::ReadFailed)?;
+        if !path.starts_with(directory) || !path.is_file() {
+            return Err(AssetError::ReadFailed);
+        }
+        let bytes = fs::read(path).map_err(|_| AssetError::ReadFailed)?;
+        if !matches!(
+            image::guess_format(&bytes),
+            Ok(image::ImageFormat::Png
+                | image::ImageFormat::Jpeg
+                | image::ImageFormat::Gif
+                | image::ImageFormat::WebP)
+        ) {
+            return Err(AssetError::ReadFailed);
+        }
+        Ok(bytes)
+    }
+
     pub fn cleanup_pending(&self) -> Result<u32, AssetError> {
         let mut connection =
             open_database(&self.database_path).map_err(|_| AssetError::StorageUnavailable)?;
@@ -401,11 +434,73 @@ mod tests {
         let png = valid_png()?;
 
         let asset = service.save_pasted_image(&first_note.id, &png)?;
+        assert_eq!(
+            service.read_note_image(&first_note.id, &asset.relative_path)?,
+            png
+        );
+        assert!(
+            service
+                .read_note_image(&second_note.id, &asset.relative_path)
+                .is_err()
+        );
+        assert!(
+            service
+                .read_note_image(&first_note.id, "assets/../database/memobox.db")
+                .is_err()
+        );
         let reused = service.save_pasted_image(&second_note.id, &png)?;
         assert_eq!(asset.id, reused.id);
         assert!(root.join(&asset.relative_path).is_file());
         assert_eq!(service.health(&first_note.id)?.missing_asset_count, 0);
         Ok(())
+    }
+
+    #[test]
+    fn image_preview_rejects_missing_and_invalid_files() -> Result<(), Box<dyn std::error::Error>> {
+        let (root, service, note_id) = preview_fixture()?;
+        let png = valid_png()?;
+        let asset = service.save_pasted_image(&note_id, &png)?;
+        let path = root.join(&asset.relative_path);
+        std::fs::write(&path, b"not an image")?;
+        assert!(
+            service
+                .read_note_image(&note_id, &asset.relative_path)
+                .is_err()
+        );
+        std::fs::rename(path, root.join("missing.png"))?;
+        assert!(
+            service
+                .read_note_image(&note_id, &asset.relative_path)
+                .is_err()
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn image_preview_rejects_symlinks_outside_assets() -> Result<(), Box<dyn std::error::Error>> {
+        let (root, service, note_id) = preview_fixture()?;
+        let asset = service.save_pasted_image(&note_id, &valid_png()?)?;
+        let path = root.join(&asset.relative_path);
+        let outside = root.join("outside.png");
+        std::fs::rename(&path, &outside)?;
+        std::os::unix::fs::symlink(outside, path)?;
+        assert!(
+            service
+                .read_note_image(&note_id, &asset.relative_path)
+                .is_err()
+        );
+        Ok(())
+    }
+
+    fn preview_fixture()
+    -> Result<(std::path::PathBuf, AssetsService, String), Box<dyn std::error::Error>> {
+        let root = std::env::temp_dir().join(format!("memo-box-preview-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("database"))?;
+        BootstrapRepository::initialize(&root.join("database").join("memobox.db"))?;
+        let note = NotesService::new(&root).create()?;
+        let service = AssetsService::new(&root);
+        Ok((root, service, note.id))
     }
 
     fn valid_png() -> Result<Vec<u8>, image::ImageError> {
