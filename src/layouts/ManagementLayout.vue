@@ -8,11 +8,10 @@ defineProps<{
   categories: CategoryNode[]
   tagCount?: number
   trashCount?: number
-  showCategoryCounts?: boolean
 }>()
 
 const emit = defineEmits<{
-  create: []
+  create: [categoryId?: string]
 }>()
 </script>
 
@@ -23,8 +22,7 @@ const emit = defineEmits<{
         :categories="categories"
         :tag-count="tagCount"
         :trash-count="trashCount"
-        :show-category-counts="showCategoryCounts"
-        @create="emit('create')"
+        @create="emit('create', $event)"
       />
     </aside>
     <section class="management-main">

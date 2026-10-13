@@ -33,5 +33,7 @@ describe('SettingsPanel', () => {
 
     expect(wrapper.text()).toContain('/Users/example/Library/Application Support/cn.xpoet.memobox')
     expect(wrapper.text()).toContain('/Users/example/Desktop')
+    expect(wrapper.text()).not.toContain('显示分类笔记数量')
+    expect(wrapper.find('el-switch-stub').exists()).toBe(false)
   })
 })

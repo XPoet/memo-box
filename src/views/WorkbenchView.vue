@@ -14,7 +14,6 @@ import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue'
 import { useNotesStore } from '@/stores/notes'
 import { useCategoriesStore } from '@/stores/categories'
 import { useTagsStore } from '@/stores/tags'
-import { useSettingsStore } from '@/stores/settings'
 import { createTag, listNoteTags, setNoteTags } from '@/services/tags'
 import { setNoteCategory } from '@/services/categories'
 import { trashNote } from '@/services/trash'
@@ -25,7 +24,6 @@ import type { ExportScopeOption } from '@/types/export'
 const notesStore = useNotesStore()
 const categoriesStore = useCategoriesStore()
 const tagsStore = useTagsStore()
-const settingsStore = useSettingsStore()
 const route = useRoute()
 const router = useRouter()
 const { error, isLoading, notes, saveStatus, selectedNote } = storeToRefs(notesStore)
@@ -102,24 +100,30 @@ watch(
 )
 
 watch(
-  () => [route.query.category, route.query.tags, route.query.note] as const,
-  async ([category, tags, note]) => {
-    await loadNotesForRoute(category, tags)
-    if (typeof note === 'string' && notes.value.some((item) => item.id === note)) {
-      await notesStore.selectNote(note)
+  () => [route.query.category, route.query.tags, route.query.note, route.query.create] as const,
+  async ([category, tags, note, create], previous) => {
+    if (create === '1') {
+      try {
+        await autoSave.flush()
+      } catch {
+        return
+      }
     }
-  },
-  { immediate: true },
-)
-
-watch(
-  () => route.query.create,
-  async (create) => {
-    if (create !== '1') {
-      return
+    if (
+      previous === undefined ||
+      category !== previous[0] ||
+      tags !== previous[1] ||
+      note !== previous[2]
+    ) {
+      await loadNotesForRoute(category, tags)
+      if (typeof note === 'string' && notes.value.some((item) => item.id === note)) {
+        await notesStore.selectNote(note)
+      }
     }
-    if (await handleCreate()) {
-      await router.replace({ name: 'workbench' })
+    if (create === '1' && (await handleCreate())) {
+      const query = { ...route.query }
+      delete query.create
+      await router.replace({ name: 'workbench', query })
     }
   },
   { immediate: true },
@@ -163,9 +167,13 @@ async function saveImage(bytes: Uint8Array): Promise<string> {
   }
 }
 
-async function handleCreate(): Promise<boolean> {
+async function handleCreate(categoryId?: string): Promise<boolean> {
   try {
     await autoSave.flush()
+    if (categoryId !== undefined) {
+      await router.push({ name: 'workbench', query: { category: categoryId, create: '1' } })
+      return true
+    }
     await notesStore.create(activeCategoryId.value)
     await categoriesStore.load()
     return true
@@ -305,7 +313,7 @@ async function handleTogglePin(): Promise<void> {
 }
 
 onMounted(async () => {
-  await handleLoad()
+  await Promise.all([categoriesStore.load(), tagsStore.load()])
   window.addEventListener('keydown', handleKeyboardShortcut)
   try {
     unlistenCloseRequested = await getCurrentWindow().onCloseRequested(async (event) => {
@@ -336,7 +344,6 @@ onBeforeUnmount(() => {
   <WorkspaceLayout
     :categories="categoriesStore.categories"
     :tag-count="tagsStore.tags.length"
-    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     @create="handleCreate"
   >
     <template #list>

@@ -202,7 +202,7 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 | `theme`                           | `'light' ｜ 'dark' ｜ 'system'`         | 默认 `system`；前端在启动前据此设置根元素属性      |
 | `noteSort`                        | `'updatedAt' ｜ 'createdAt' ｜ 'title'` | 默认 `updatedAt`                                   |
 | `editorFontSize`                  | `14 ｜ 15 ｜ 16 ｜ 17 ｜ 18`            | 默认 `15`，单位为 px                               |
-| `showCategoryCounts`              | boolean                                 | 默认 `true`                                        |
+| `showCategoryCounts`              | boolean                                 | 默认 `true`；保留兼容，侧栏不再显示数量            |
 | `dataDirectory`                   | string                                  | 系统应用数据目录的绝对路径，仅供设置页只读展示     |
 | `defaultExportDirectory`          | string                                  | 当前有效的默认导出目录绝对路径；未配置时为桌面目录 |
 | `hasCustomDefaultExportDirectory` | boolean                                 | 是否已保存用户选择的默认导出目录                   |

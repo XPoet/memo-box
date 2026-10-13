@@ -124,7 +124,7 @@ describe('AppSidebar', () => {
     expect(wrapper.emitted('create')).toHaveLength(1)
   })
 
-  it('可根据本地偏好隐藏分类统计，同时保留分类导航入口', async () => {
+  it('分类不再显示笔记数量，同时保留分类导航入口', async () => {
     const router = createTestRouter()
     await router.push('/')
     await router.isReady()
@@ -141,7 +141,6 @@ describe('AppSidebar', () => {
             children: [],
           },
         ],
-        showCategoryCounts: false,
       },
       global: { plugins: [router], stubs: { ElButton: ButtonStub, ElIcon: IconStub } },
     })
@@ -152,7 +151,7 @@ describe('AppSidebar', () => {
     )
   })
 
-  it('分类数据刷新后立即显示最新笔记数量', async () => {
+  it('点击分类加号传递对应分类 ID，不触发分类导航', async () => {
     const router = createTestRouter()
     await router.push('/')
     await router.isReady()
@@ -166,13 +165,18 @@ describe('AppSidebar', () => {
       children: [],
     }
     const wrapper = mount(AppSidebar, {
-      props: { categories: [category], showCategoryCounts: true },
+      props: { categories: [category] },
       global: { plugins: [router], stubs: { ElButton: ButtonStub, ElIcon: IconStub } },
     })
 
-    await wrapper.setProps({ categories: [{ ...category, noteCount: 3 }] })
+    expect(wrapper.find('.sidebar-category-row .sidebar-nav-count').exists()).toBe(false)
+    const button = wrapper.get('.sidebar-category-create')
+    expect(button.attributes('aria-label')).toBe('在工作下新建笔记')
+    expect(button.element.closest('a')).toBeNull()
+    await button.trigger('click')
 
-    expect(wrapper.get('.sidebar-category-item .sidebar-nav-count').text()).toBe('3')
+    expect(wrapper.emitted('create')).toEqual([['work']])
+    expect(router.currentRoute.value.query.category).toBeUndefined()
   })
 
   it('进入未分类筛选时为未分类入口添加激活状态', async () => {

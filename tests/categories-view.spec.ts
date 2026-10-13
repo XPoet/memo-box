@@ -94,6 +94,19 @@ describe('CategoriesView', () => {
     categoriesService.toCategoryError.mockImplementation((error: unknown) => error)
   })
 
+  it('管理页分类加号携带目标分类跳转到新建笔记流程', async () => {
+    categoriesService.listCategories.mockResolvedValue([category('work')])
+    const wrapper = await mountView()
+
+    await wrapper.get('.sidebar-category-create').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'AppSidebar' }).vm.$route.query).toEqual({
+      category: 'work',
+      create: '1',
+    })
+  })
+
   it('跨层移动后持久化真实顺序并同步更新侧栏', async () => {
     const existing = category('existing', 'target')
     const source = category('source')

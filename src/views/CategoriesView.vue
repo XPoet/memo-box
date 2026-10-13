@@ -26,7 +26,6 @@ import {
   renameCategory,
 } from '@/services/categories'
 import { useCategoriesStore } from '@/stores/categories'
-import { useSettingsStore } from '@/stores/settings'
 import type { CategoryDeleteMode, CategoryNode } from '@/types/categories'
 import type { ExportScopeOption } from '@/types/export'
 
@@ -34,7 +33,6 @@ type CategoryTreeNode = RenderContentContext['node']
 type SuccessfulNodeDropType = Exclude<NodeDropType, 'none'>
 
 const categoriesStore = useCategoriesStore()
-const settingsStore = useSettingsStore()
 const router = useRouter()
 const treeData = shallowRef<CategoryNode[]>([])
 const selectedCategory = shallowRef<CategoryNode>()
@@ -230,8 +228,8 @@ function openExport(category: CategoryNode): void {
   isExportDialogVisible.value = true
 }
 
-function createNoteFromSidebar(): void {
-  void router.push({ name: 'workbench', query: { create: '1' } })
+function createNoteFromSidebar(categoryId?: string): void {
+  void router.push({ name: 'workbench', query: { create: '1', category: categoryId } })
 }
 
 watch(
@@ -256,7 +254,6 @@ onMounted(() => {
     title="分类管理"
     description="最多五级，拖拽调整结构；同级分类名称不可重复。"
     :categories="categoriesStore.categories"
-    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     @create="createNoteFromSidebar"
   >
     <template #action>

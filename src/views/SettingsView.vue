@@ -63,8 +63,8 @@ async function openDirectory(): Promise<void> {
   }
 }
 
-function createNote(): void {
-  void router.push({ name: 'workbench', query: { create: '1' } })
+function createNote(categoryId?: string): void {
+  void router.push({ name: 'workbench', query: { create: '1', category: categoryId } })
 }
 
 onMounted(() => {
@@ -78,7 +78,6 @@ onMounted(() => {
     description="管理保存在此设备上的偏好与目录。"
     :categories="categoriesStore.categories"
     :tag-count="tagsStore.tags.length"
-    :show-category-counts="settingsStore.snapshot?.showCategoryCounts"
     @create="createNote"
   >
     <p v-if="settingsStore.error && !settingsStore.snapshot" class="settings-error" role="alert">

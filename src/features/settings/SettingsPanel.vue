@@ -15,7 +15,6 @@ const emit = defineEmits<{
       theme?: ThemePreference
       noteSort?: NoteSort
       editorFontSize?: 14 | 15 | 16 | 17 | 18
-      showCategoryCounts?: boolean
     },
   ]
   chooseDefaultExportDirectory: []
@@ -33,10 +32,6 @@ const noteSort = computed({
 const editorFontSize = computed({
   get: () => props.settings?.editorFontSize ?? 15,
   set: (value: number) => emit('update', { editorFontSize: value as 14 | 15 | 16 | 17 | 18 }),
-})
-const showCategoryCounts = computed({
-  get: () => props.settings?.showCategoryCounts ?? true,
-  set: (value: boolean) => emit('update', { showCategoryCounts: value }),
 })
 
 function updateEditorFontSize(value: number): void {
@@ -89,10 +84,6 @@ function isEditorFontSize(value: number): value is 14 | 15 | 16 | 17 | 18 {
             :value="size"
           />
         </el-select>
-      </label>
-      <label class="settings-row">
-        <span><strong>显示分类笔记数量</strong><small>控制侧栏分类树中的统计数字。</small></span>
-        <el-switch v-model="showCategoryCounts" :disabled="isSaving" />
       </label>
     </article>
 

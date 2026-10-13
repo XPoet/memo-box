@@ -5,23 +5,17 @@ import type { CategoryNode } from '@/types/categories'
 defineProps<{
   categories: CategoryNode[]
   tagCount?: number
-  showCategoryCounts?: boolean
 }>()
 
 const emit = defineEmits<{
-  create: []
+  create: [categoryId?: string]
 }>()
 </script>
 
 <template>
   <main class="workspace-layout">
     <aside class="sidebar">
-      <AppSidebar
-        :categories="categories"
-        :tag-count="tagCount"
-        :show-category-counts="showCategoryCounts"
-        @create="emit('create')"
-      />
+      <AppSidebar :categories="categories" :tag-count="tagCount" @create="emit('create', $event)" />
     </aside>
     <section class="note-list-panel">
       <slot name="list" />

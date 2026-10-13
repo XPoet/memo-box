@@ -17,11 +17,10 @@ const props = defineProps<{
   categories: CategoryNode[]
   tagCount?: number
   trashCount?: number
-  showCategoryCounts?: boolean
 }>()
 
 const emit = defineEmits<{
-  create: []
+  create: [categoryId?: string]
 }>()
 
 const route = useRoute()
@@ -126,20 +125,29 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
           <el-icon><Folder /></el-icon>
           <span class="sidebar-category-name">未分类</span>
         </RouterLink>
-        <RouterLink
+        <div
           v-for="category in visibleCategories"
           :key="category.id"
-          class="sidebar-category-item"
+          class="sidebar-category-row"
           :class="{ 'sidebar-category-item--active': isCategoryActive(category.id) }"
-          :style="categoryIndent(category)"
-          :to="{ name: 'workbench', query: { category: category.id } }"
         >
-          <el-icon><Folder /></el-icon>
-          <span class="sidebar-category-name">{{ category.name }}</span>
-          <small v-if="showCategoryCounts !== false" class="sidebar-nav-count">{{
-            category.noteCount
-          }}</small>
-        </RouterLink>
+          <RouterLink
+            class="sidebar-category-item"
+            :style="categoryIndent(category)"
+            :to="{ name: 'workbench', query: { category: category.id } }"
+          >
+            <el-icon><Folder /></el-icon>
+            <span class="sidebar-category-name">{{ category.name }}</span>
+          </RouterLink>
+          <el-button
+            class="sidebar-category-create"
+            :icon="Plus"
+            text
+            :aria-label="`在${category.name}下新建笔记`"
+            :title="`在${category.name}下新建笔记`"
+            @click="emit('create', category.id)"
+          />
+        </div>
       </el-scrollbar>
     </section>
 
@@ -227,6 +235,40 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   text-decoration: none;
 }
 
+.sidebar-category-row {
+  display: flex;
+  align-items: center;
+  min-inline-size: 0;
+  border-radius: var(--radius-8);
+}
+
+.sidebar-category-row .sidebar-category-item {
+  flex: 1;
+}
+
+.sidebar-category-create {
+  flex: 0 0 auto;
+  inline-size: 24px;
+  block-size: 24px;
+  margin-inline-end: 4px;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-category-row:hover .sidebar-category-create,
+.sidebar-category-row:focus-within .sidebar-category-create {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .sidebar-category-create {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .sidebar-nav-item .el-icon,
 .sidebar-category-item .el-icon {
   flex: 0 0 auto;
@@ -240,7 +282,8 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
 }
 
 .sidebar-nav-item:hover,
-.sidebar-category-item:hover {
+.sidebar-category-item:hover,
+.sidebar-category-row:hover {
   background: color-mix(in srgb, var(--color-surface) 76%, transparent);
 }
 
