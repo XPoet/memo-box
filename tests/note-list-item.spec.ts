@@ -24,8 +24,8 @@ describe('NoteListItem', () => {
 
     const rows = wrapper.findAll('.note-list-item-time')
     expect(rows).toHaveLength(2)
-    expect(rows[0].text()).toBe('创建2026/10/16 00:01:02')
-    expect(rows[1].text()).toBe('更新2026/10/17 23:59:58')
+    expect(rows[0].text()).toBe('2026/10/16 00:01')
+    expect(rows[1].text()).toBe('2026/10/17 23:59')
     expect(rows[0].get('time').attributes('datetime')).toBe(createdAt)
     expect(rows[1].get('time').attributes('datetime')).toBe(updatedAt)
     expect(rows.every((row) => row.find('svg').exists())).toBe(true)
