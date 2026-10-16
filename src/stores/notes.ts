@@ -10,7 +10,7 @@ import {
   saveRecoveryDraft,
   toNoteError,
 } from '@/services/notes'
-import { listNotesByCategory } from '@/services/categories'
+import { listNotesByCategory, setNoteCategory } from '@/services/categories'
 import { listNotesByTags } from '@/services/tags'
 import type { NoteDetail, NoteError, NoteSummary } from '@/types/notes'
 
@@ -170,6 +170,28 @@ export const useNotesStore = defineStore('notes', () => {
     await refreshNotes()
   }
 
+  async function moveToCategory(id: string, categoryId?: string): Promise<void> {
+    if (!notes.value.some((note) => note.id === id)) return
+    await flush()
+    const movedIndex = notes.value.findIndex((note) => note.id === id)
+    await setNoteCategory(id, categoryId)
+    if (selectedNote.value?.id === id) {
+      selectedNote.value = { ...selectedNote.value, categoryId }
+    }
+    await refreshNotes()
+    if (selectedNote.value?.id !== id || notes.value.some((note) => note.id === id)) return
+
+    await flush()
+    if (selectedNote.value?.id !== id || isDirty.value) return
+    const nextNote = notes.value[Math.min(Math.max(movedIndex, 0), notes.value.length - 1)]
+    const nextDetail = nextNote === undefined ? undefined : await getNote(nextNote.id)
+    if (selectedNote.value?.id !== id || isDirty.value) return
+    selectedNote.value = nextDetail
+    isDirty.value = false
+    saveStatus.value = nextNote === undefined ? 'idle' : 'saved'
+    error.value = undefined
+  }
+
   return {
     notes,
     selectedNote,
@@ -188,5 +210,6 @@ export const useNotesStore = defineStore('notes', () => {
     create,
     reloadSelected,
     setPinned,
+    moveToCategory,
   }
 })

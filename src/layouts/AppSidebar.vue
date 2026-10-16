@@ -9,19 +9,62 @@ import {
   Search,
   Setting,
 } from '@element-plus/icons-vue'
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { UNCATEGORIZED_CATEGORY_ID, type CategoryNode } from '@/types/categories'
+import { NOTE_DRAG_TYPE } from '@/types/notes'
 
 const props = defineProps<{
   categories: CategoryNode[]
   tagCount?: number
   trashCount?: number
+  noteDropEnabled?: boolean
 }>()
 
 const emit = defineEmits<{
   create: [categoryId?: string]
+  moveNote: [noteId: string, categoryId: string | undefined]
 }>()
+
+const dropTargetId = shallowRef<string>()
+watch(
+  () => props.noteDropEnabled,
+  (enabled) => {
+    if (!enabled) dropTargetId.value = undefined
+  },
+)
+
+function acceptsNote(event: DragEvent): boolean {
+  return (
+    props.noteDropEnabled === true && event.dataTransfer?.types.includes(NOTE_DRAG_TYPE) === true
+  )
+}
+
+function dragOverCategory(event: DragEvent, categoryId: string): void {
+  if (!acceptsNote(event) || event.dataTransfer === null) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+  dropTargetId.value = categoryId
+}
+
+function leaveCategory(event: DragEvent): void {
+  if (
+    event.currentTarget instanceof HTMLElement &&
+    event.relatedTarget instanceof Node &&
+    event.currentTarget.contains(event.relatedTarget)
+  ) {
+    return
+  }
+  dropTargetId.value = undefined
+}
+
+function dropNote(event: DragEvent, categoryId?: string): void {
+  dropTargetId.value = undefined
+  if (!acceptsNote(event)) return
+  event.preventDefault()
+  const noteId = event.dataTransfer?.getData(NOTE_DRAG_TYPE).trim()
+  if (noteId) emit('moveNote', noteId, categoryId)
+}
 
 const route = useRoute()
 const activeRouteName = computed(() => route.name)
@@ -119,8 +162,17 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
       <el-scrollbar class="sidebar-category-tree">
         <RouterLink
           class="sidebar-category-item"
-          :class="{ 'sidebar-category-item--active': isUncategorizedActive() }"
+          :class="{
+            'sidebar-category-item--active': isUncategorizedActive(),
+            'sidebar-category-item--drop-target': dropTargetId === UNCATEGORIZED_CATEGORY_ID,
+          }"
           :to="{ name: 'workbench', query: { category: UNCATEGORIZED_CATEGORY_ID } }"
+          draggable="false"
+          title="未分类"
+          @dragenter="dragOverCategory($event, UNCATEGORIZED_CATEGORY_ID)"
+          @dragover="dragOverCategory($event, UNCATEGORIZED_CATEGORY_ID)"
+          @dragleave="leaveCategory"
+          @drop.stop="dropNote($event)"
         >
           <el-icon><Folder /></el-icon>
           <span class="sidebar-category-name">未分类</span>
@@ -129,12 +181,21 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
           v-for="category in visibleCategories"
           :key="category.id"
           class="sidebar-category-row"
-          :class="{ 'sidebar-category-item--active': isCategoryActive(category.id) }"
+          :class="{
+            'sidebar-category-item--active': isCategoryActive(category.id),
+            'sidebar-category-item--drop-target': dropTargetId === category.id,
+          }"
+          @dragenter="dragOverCategory($event, category.id)"
+          @dragover="dragOverCategory($event, category.id)"
+          @dragleave="leaveCategory"
+          @drop.stop="dropNote($event, category.id)"
         >
           <RouterLink
             class="sidebar-category-item"
             :style="categoryIndent(category)"
             :to="{ name: 'workbench', query: { category: category.id } }"
+            :title="category.path"
+            draggable="false"
           >
             <el-icon><Folder /></el-icon>
             <span class="sidebar-category-name">{{ category.name }}</span>
@@ -357,6 +418,14 @@ function flattenCategories(categories: CategoryNode[]): CategoryNode[] {
   background: var(--color-surface);
   color: var(--color-text-primary);
   font-weight: 650;
+}
+
+.sidebar-category-item--drop-target,
+.sidebar-category-item--drop-target:hover {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
 }
 
 .sidebar-category-name {

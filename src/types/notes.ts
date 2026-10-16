@@ -1,3 +1,5 @@
+export const NOTE_DRAG_TYPE = 'application/x-memobox-note-id'
+
 export interface NoteSummary {
   id: string
   title: string

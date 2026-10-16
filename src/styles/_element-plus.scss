@@ -44,3 +44,18 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-floating);
 }
+
+.workspace-panels > .el-splitter-panel {
+  display: grid;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.workspace-panels > .note-list-panel {
+  min-inline-size: 280px;
+  background: var(--color-surface);
+}
+
+.workspace-panels > .editor-panel {
+  min-inline-size: 360px;
+}

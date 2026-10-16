@@ -15,7 +15,7 @@ import { useNotesStore } from '@/stores/notes'
 import { useCategoriesStore } from '@/stores/categories'
 import { useTagsStore } from '@/stores/tags'
 import { createTag, listNoteTags, setNoteTags } from '@/services/tags'
-import { setNoteCategory } from '@/services/categories'
+import { toCategoryError } from '@/services/categories'
 import { trashNote } from '@/services/trash'
 import { UNCATEGORIZED_CATEGORY_ID, type CategoryNode } from '@/types/categories'
 import type { NoteDetail } from '@/types/notes'
@@ -31,6 +31,7 @@ const missingAssetCount = shallowRef(0)
 const selectedTagIds = shallowRef<string[]>([])
 const imageError = shallowRef<string>()
 const isExportDialogVisible = shallowRef(false)
+const isMovingNote = shallowRef(false)
 const noteEditor = useTemplateRef<{ focusEditor: () => void }>('noteEditor')
 const exportScopeOptions = computed<ExportScopeOption[]>(() => {
   const note = selectedNote.value
@@ -243,10 +244,26 @@ async function handleExport(): Promise<void> {
 async function handleUpdateCategory(categoryId: string | undefined): Promise<void> {
   const note = selectedNote.value
   if (note === undefined) return
-  await autoSave.flush()
-  await setNoteCategory(note.id, categoryId)
-  await notesStore.reloadSelected()
-  await categoriesStore.load()
+  await handleMoveNote(note.id, categoryId)
+}
+
+async function handleMoveNote(noteId: string, categoryId: string | undefined): Promise<void> {
+  if (isMovingNote.value || !notes.value.some((note) => note.id === noteId)) return
+  isMovingNote.value = true
+  try {
+    await autoSave.flush()
+    await notesStore.moveToCategory(noteId, categoryId)
+    await categoriesStore.load()
+    const categoryName =
+      categoryId === undefined
+        ? '未分类'
+        : (findCategoryName(categoriesStore.categories, categoryId) ?? '目标分类')
+    ElMessage.success(`笔记已移至“${categoryName}”。`)
+  } catch (failure: unknown) {
+    ElMessage.error(notesStore.error?.message ?? toCategoryError(failure).message)
+  } finally {
+    isMovingNote.value = false
+  }
 }
 
 async function handleUpdateTags(tagIds: string[]): Promise<void> {
@@ -344,7 +361,9 @@ onBeforeUnmount(() => {
   <WorkspaceLayout
     :categories="categoriesStore.categories"
     :tag-count="tagsStore.tags.length"
+    :note-drop-enabled="!isMovingNote"
     @create="handleCreate"
+    @move-note="handleMoveNote"
   >
     <template #list>
       <NoteList

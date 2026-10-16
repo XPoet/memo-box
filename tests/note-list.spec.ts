@@ -59,11 +59,11 @@ describe('NoteList', () => {
     Object.defineProperty(listItems.element, 'clientHeight', { configurable: true, value: 520 })
     await listItems.trigger('scroll')
 
-    expect(wrapper.findAll('.note-list-item')).toHaveLength(17)
+    expect(wrapper.findAll('.note-list-item')).toHaveLength(16)
     expect(wrapper.text()).toContain('笔记 0')
     expect(wrapper.text()).not.toContain('笔记 9999')
 
-    Object.defineProperty(listItems.element, 'scrollTop', { configurable: true, value: 104 * 500 })
+    Object.defineProperty(listItems.element, 'scrollTop', { configurable: true, value: 144 * 500 })
     await listItems.trigger('scroll')
 
     expect(wrapper.text()).toContain('笔记 494')

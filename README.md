@@ -5,6 +5,8 @@ MemoBox 是一款本地笔记桌面应用。项目使用 Tauri 2、Vue 3、TypeS
 ## 项目特点
 
 - 本地优先：业务数据、图片资源、日志和配置均保存在系统应用数据目录，不依赖网络、CDN 或远程字体。
+- 拖拽分类：按住笔记列表中的笔记，拖入左侧分类或“未分类”即可移动。
+- 灵活分栏：笔记列表与编辑器可拖动分隔条调整宽度。
 - 分层架构：`Vue → Service / Pinia → Tauri Command → Rust Service → Repository → SQLite / 文件系统`。
 - 安全初始化：启动时创建固定目录，启用 SQLite 外键、WAL、NORMAL synchronous 与 5 秒 busy timeout，并以事务执行 Migration。
 - 最小权限：当前 Capability 仅授予主窗口 `core:default`，不开放 Shell、HTTP 或任意文件系统权限。
