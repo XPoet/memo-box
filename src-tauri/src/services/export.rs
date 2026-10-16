@@ -650,6 +650,64 @@ mod tests {
     }
 
     #[test]
+    fn exports_all_direct_category_notes_including_uncategorized()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = data_directory();
+        let database_path = directory.join("database").join("memobox.db");
+        BootstrapRepository::initialize(&database_path)?;
+        let mut connection = open_database(&database_path)?;
+        let transaction = connection.transaction()?;
+        transaction.execute("INSERT INTO categories (id, name, parent_id, level, sort_order, created_at, updated_at) VALUES ('root', '工作', NULL, 1, 0, '2026-07-24T00:00:00Z', '2026-07-24T00:00:00Z'), ('child', '项目', 'root', 2, 0, '2026-07-24T00:00:00Z', '2026-07-24T00:00:00Z'), ('other', '其他', NULL, 1, 1, '2026-07-24T00:00:00Z', '2026-07-24T00:00:00Z')", [])?;
+        for (id, title, category_id, is_deleted) in [
+            ("first", "笔记一", Some("root"), false),
+            ("second", "笔记二", Some("root"), false),
+            ("child-note", "子分类笔记", Some("child"), false),
+            ("other-note", "其他分类笔记", Some("other"), false),
+            ("deleted", "回收站笔记", Some("root"), true),
+            ("uncategorized-first", "未分类一", None, false),
+            ("uncategorized-second", "未分类二", None, false),
+            ("uncategorized-deleted", "未分类回收站笔记", None, true),
+        ] {
+            transaction.execute(
+                "INSERT INTO notes (id, title, content, category_id, is_deleted, created_at, updated_at)
+                 VALUES (?1, ?2, '导出正文', ?3, ?4, '2026-07-24T00:00:00Z', '2026-07-24T00:00:00Z')",
+                rusqlite::params![id, title, category_id, is_deleted],
+            )?;
+        }
+        transaction.commit()?;
+        let target_directory = directory.join("target");
+        fs::create_dir(&target_directory)?;
+
+        for (scope_id, category_directory, expected_names) in [
+            ("root", "工作", ["笔记一.md", "笔记二.md"]),
+            ("uncategorized", "", ["未分类一.md", "未分类二.md"]),
+        ] {
+            let result = ExportService::new(&directory).export(
+                &request(ExportScopeKind::Category, scope_id, &target_directory),
+                &ExportTaskRegistry::default(),
+                |_| Ok(()),
+            )?;
+            assert_eq!(result.exported_count, 2);
+            assert_eq!(result.failed_count, 0);
+            let output = target_directory.join(&result.directory_label);
+            let markdown_directory = output.join(category_directory);
+            let mut names = Vec::new();
+            for entry in fs::read_dir(markdown_directory)? {
+                let entry = entry?;
+                if entry.file_type()?.is_file() {
+                    assert!(fs::read_to_string(entry.path())?.contains("导出正文"));
+                    names.push(entry.file_name().to_string_lossy().into_owned());
+                }
+            }
+            names.sort();
+            assert_eq!(names, expected_names);
+            assert!(!output.join("其他").exists());
+            assert!(!output.join("工作").join("项目").exists());
+        }
+        Ok(())
+    }
+
+    #[test]
     fn export_partial_failure_keeps_successful_notes() -> Result<(), Box<dyn std::error::Error>> {
         let directory = data_directory();
         let database_path = directory.join("database").join("memobox.db");

@@ -243,6 +243,8 @@ Rust 必须根据字节文件头识别 PNG、JPEG、WebP 或 GIF，并以受限�
 
 `ExportProgress` 包含 `total`、`processed`、`succeeded`、`failed`、`currentTitle?`。进度以创建任务时的数据库快照为准；回收站笔记永不参与导出。同一笔记和同一资源在单次任务中至多处理一次。
 
+工作台导出弹窗提供“当前笔记”和“当前分类”。“当前分类”使用当前笔记的分类 ID，导出该分类的全部直属笔记，不含子分类，也不受工作台列表筛选条件限制。未分类笔记使用 `{ kind: 'category', id: 'uncategorized' }`，Rust 将其解析为 `category_id IS NULL`；该保留值仅用于 `category` 范围。导出前先保存当前草稿，保存失败时阻止打开导出弹窗。
+
 成功响应：`ExportResult`。
 
 | 字段             | 类型            | 说明                                      |

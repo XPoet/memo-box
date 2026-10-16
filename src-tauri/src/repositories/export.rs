@@ -76,11 +76,15 @@ fn snapshot_in_transaction(
             ("单篇笔记".to_owned(), notes)
         }
         ExportScopeKind::Category => {
-            let name = category_name(connection, &scope.id)?;
+            let name = if scope.id == "uncategorized" {
+                "未分类".to_owned()
+            } else {
+                category_name(connection, &scope.id)?
+            };
             let notes = read_notes(
                 connection,
                 "SELECT id, title, content, category_id FROM notes
-                     WHERE category_id = ?1 AND is_deleted = 0
+                     WHERE category_id IS NULLIF(?1, 'uncategorized') AND is_deleted = 0
                      ORDER BY updated_at DESC, id DESC",
                 &scope.id,
             )?;

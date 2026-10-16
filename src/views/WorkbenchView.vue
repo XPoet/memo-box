@@ -44,6 +44,11 @@ const exportScopeOptions = computed<ExportScopeOption[]>(() => {
       title: '当前笔记',
       description: '导出当前笔记及其关联的原格式图片。',
     },
+    {
+      scope: { kind: 'category', id: note.categoryId ?? UNCATEGORIZED_CATEGORY_ID },
+      title: '当前分类',
+      description: '导出当前笔记所属分类的全部直属笔记，不含子分类。',
+    },
   ]
 })
 const activeCategoryName = computed(() => {
