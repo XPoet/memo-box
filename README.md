@@ -2,6 +2,18 @@
 
 MemoBox 是一款本地笔记桌面应用。项目使用 Tauri 2、Vue 3、TypeScript、Rust 和 SQLite 构建。
 
+## 下载安装
+
+首次自动发布成功后，可从 [GitHub Releases 最新版本](https://github.com/XPoet/memo-box/releases/latest) 的 **Assets** 直接下载安装包，无需安装开发环境：
+
+| 平台                          | 安装包                                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| Windows x64                   | `MemoBox_<版本号>_windows_x64-setup.exe`，或用于 MSI 安装的 `MemoBox_<版本号>_windows_x64.msi` |
+| macOS Apple Silicon（M 系列） | `MemoBox_<版本号>_macos_aarch64.dmg`                                                           |
+| macOS Intel                   | `MemoBox_<版本号>_macos_x64.dmg`                                                               |
+
+Windows 运行 EXE 或 MSI 安装；macOS 打开 DMG，将 MemoBox 拖入“应用程序”。当前 Windows 安装包未配置代码签名证书，macOS 使用 ad-hoc 签名且未经 Apple 公证，首次安装或启动可能出现系统安全提示。安装说明、校验方法和发布启用步骤见 [发布指南](docs/RELEASE.md)。
+
 ## 项目特点
 
 - 本地优先：业务数据、图片资源、日志和配置均保存在系统应用数据目录，不依赖网络、CDN 或远程字体。
@@ -124,7 +136,15 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 ## 构建与打包
 
-### 发布新版本
+### GitHub 自动发布
+
+本仓库的 `develop` 分支通过 Pull Request 合并到 `main` 后，GitHub Actions 自动递增补丁版本，例如 `0.0.10 → 0.0.11`，同步四处 MemoBox 自身版本，生成版本提交与标签并将版本提交回 `main`，随后构建 Windows x64（EXE、MSI）及 macOS（Apple Silicon、Intel）安装包。质量检查与全部构建成功、安装包完整性检查通过后，才公开 GitHub Release，并附上下载链接、自动生成的变更说明和 `SHA256SUMS.txt`。
+
+日常发版只需推送 `develop` 并合并 PR，无需提前执行 `pnpm release` 或修改版本号。同一次合并的失败重跑复用已分配版本，不会重复递增；版本分配参考仓库、`main`、已有标签和草稿中的最高正式版本，避免连续合并时发生版本冲突。版本提交只更新 MemoBox 自身版本，不升级依赖；`src-tauri/Cargo.lock` 仅同步 `MemoBox` 包版本。
+
+### 本地准备新版本
+
+以下命令保留为本机 Mac 独立打包工具，GitHub 自动发布不要求执行。若先手动递增版本，再合并 PR，工作流仍会在最高版本基础上额外递增一次 patch。
 
 先提交当前开发改动，确保 Git 工作区没有未提交或未跟踪的文件，再执行：
 

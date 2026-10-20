@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const files = [
+export const files = [
   'package.json',
   'src-tauri/tauri.conf.json',
   'src-tauri/Cargo.toml',
@@ -39,7 +39,7 @@ function packageSection(content, path) {
   return { pattern, section }
 }
 
-function readVersion(content, path) {
+export function readVersion(content, path) {
   if (path.endsWith('.json')) {
     return JSON.parse(content).version
   }
@@ -47,7 +47,7 @@ function readVersion(content, path) {
   return section.match(/^version = "([^"]+)"\r?$/m)?.[1]
 }
 
-function updateVersion(content, path, version) {
+export function updateVersion(content, path, version) {
   if (path.endsWith('.json')) {
     return replaceOnce(content, /^(  "version": ")[^"]+("[,]?\r?$)/m, `$1${version}$2`, path)
   }
@@ -56,7 +56,7 @@ function updateVersion(content, path, version) {
   return replaceOnce(content, pattern, () => updated, path)
 }
 
-function nextVersion(current, target) {
+export function nextVersion(current, target) {
   if (['patch', 'minor', 'major'].includes(target)) {
     const [major, minor, patch] = current.split('.').map(BigInt)
     if (target === 'major') return `${major + 1n}.0.0`
@@ -132,10 +132,12 @@ function release() {
   log('DMG 位于 src-tauri/target/release/bundle/dmg/；未创建标签或推送远程。')
 }
 
-try {
-  release()
-} catch (error) {
-  process.stderr.write(`发布失败：${error instanceof Error ? error.message : String(error)}\n`)
-  process.stderr.write('未完成的版本改动会保留，请检查 git status 后处理；修正后可重新发布。\n')
-  process.exitCode = 1
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try {
+    release()
+  } catch (error) {
+    process.stderr.write(`发布失败：${error instanceof Error ? error.message : String(error)}\n`)
+    process.stderr.write('未完成的版本改动会保留，请检查 git status 后处理；修正后可重新发布。\n')
+    process.exitCode = 1
+  }
 }
