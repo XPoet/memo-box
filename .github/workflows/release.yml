@@ -38,7 +38,8 @@ jobs:
         with:
           github-token: ${{ secrets.RELEASE_TOKEN || github.token }}
           script: |
-            const { prepareRelease } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/github-release.mjs`)
+            const { pathToFileURL } = await import('node:url')
+            const { prepareRelease } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/scripts/github-release.mjs`).href)
             await prepareRelease({ github, context, core })
 
   build:
@@ -83,6 +84,8 @@ jobs:
           components: clippy,rustfmt
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+      - name: Check release scripts on the native platform
+        run: pnpm exec vitest run tests/release-workflow.spec.mjs tests/github-release.spec.mjs
       - name: Check frontend
         if: matrix.target == 'aarch64-apple-darwin'
         run: pnpm check:frontend
@@ -95,6 +98,42 @@ jobs:
         env:
           APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && '-' || '' }}
         run: pnpm exec tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} -- --locked
+      - name: Verify macOS installer and app startup
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg=(src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg)
+          hdiutil verify "${dmg[0]}"
+          mountpoint="$RUNNER_TEMP/memobox-install"
+          mkdir -p "$mountpoint"
+          hdiutil attach "${dmg[0]}" -mountpoint "$mountpoint" -nobrowse -readonly
+          trap 'hdiutil detach "$mountpoint"' EXIT
+          app="$mountpoint/MemoBox.app"
+          codesign --verify --deep --strict "$app"
+          "$app/Contents/MacOS/MemoBox" > "$RUNNER_TEMP/memobox-startup.log" 2>&1 &
+          app_pid=$!
+          sleep 8
+          if ! kill -0 "$app_pid" 2>/dev/null; then
+            cat "$RUNNER_TEMP/memobox-startup.log"
+            exit 1
+          fi
+          kill "$app_pid"
+          wait "$app_pid" || true
+      - name: Verify Windows installation and app startup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-Item "src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe"
+          $installDirectory = Join-Path $env:RUNNER_TEMP 'MemoBox-installed'
+          $setup = Start-Process -FilePath $installer.FullName -ArgumentList '/S', "/D=$installDirectory" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer exited with $($setup.ExitCode)" }
+          $application = Join-Path $installDirectory 'MemoBox.exe'
+          if (-not (Test-Path $application)) { throw 'Installed MemoBox.exe is missing' }
+          $app = Start-Process -FilePath $application -PassThru
+          Start-Sleep -Seconds 8
+          if ($app.HasExited) { throw "MemoBox exited during startup with $($app.ExitCode)" }
+          Stop-Process -Id $app.Id
       - name: Upload missing installers to the draft
         uses: actions/github-script@v8
         env:
@@ -103,7 +142,8 @@ jobs:
           RELEASE_TARGET: ${{ matrix.target }}
         with:
           script: |
-            const { uploadInstallers } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/github-release.mjs`)
+            const { pathToFileURL } = await import('node:url')
+            const { uploadInstallers } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/scripts/github-release.mjs`).href)
             await uploadInstallers({ github, context, core, releaseId: process.env.RELEASE_ID, commitSha: process.env.RELEASE_COMMIT, target: process.env.RELEASE_TARGET })
 
   publish:
@@ -123,5 +163,6 @@ jobs:
           RELEASE_COMMIT: ${{ needs.prepare.outputs.commit_sha }}
         with:
           script: |
-            const { publishRelease } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/github-release.mjs`)
+            const { pathToFileURL } = await import('node:url')
+            const { publishRelease } = await import(pathToFileURL(`${process.env.GITHUB_WORKSPACE}/scripts/github-release.mjs`).href)
             await publishRelease({ github, context, core, releaseId: process.env.RELEASE_ID, commitSha: process.env.RELEASE_COMMIT })

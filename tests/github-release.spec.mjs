@@ -43,7 +43,7 @@ function fixture() {
     id: 123,
     tag_name: `v${version}`,
     target_commitish: snapshotSha,
-    body: `<!-- memobox-release-source: ${sha} -->`,
+    body: `<!-- memobox-release-source: ${sha} -->\n\n<!-- memobox-downloads:start -->\n安装包正在构建或校验\n<!-- memobox-downloads:end -->\n\n## What's Changed\nRelease notes`,
     draft: true,
     html_url: `https://github.com/XPoet/memo-box/releases/tag/v${version}`,
   }
@@ -221,6 +221,7 @@ function fixture() {
     },
   }
   const core = { setOutput: vi.fn(), info: vi.fn() }
+  const fetchUrl = vi.fn().mockResolvedValue({ ok: true, status: 200 })
   return {
     root,
     release,
@@ -229,6 +230,8 @@ function fixture() {
     github,
     context,
     core,
+    fetchUrl,
+    wait: vi.fn().mockResolvedValue(undefined),
     releaseId: '123',
     commitSha: snapshotSha,
     refs,
@@ -289,9 +292,7 @@ describe('GitHub 自动发布', () => {
         tag_name: 'v0.0.11',
         draft: true,
         generate_release_notes: true,
-        body: expect.stringContaining(
-          'releases/download/v0.0.11/MemoBox_0.0.11_windows_x64-setup.exe',
-        ),
+        body: expect.stringContaining('当前版本尚未公开发布'),
       }),
     )
     expect(snapshot.parents).toEqual([{ sha }])
@@ -309,6 +310,7 @@ describe('GitHub 自动发布', () => {
     expect(args.core.setOutput).toHaveBeenCalledWith('commit_sha', releasedSha)
     expect(args.core.setOutput).toHaveBeenCalledWith('should_build', 'true')
     expect(readFileSync(join(args.root, 'package.json'), 'utf8')).toContain('"version": "0.0.10"')
+    expect(args.release.body).not.toContain('/releases/download/')
   })
 
   it('按照最高的仓库、main、标签和草稿版本分配下一版本', async () => {
@@ -696,6 +698,46 @@ describe('GitHub 自动发布', () => {
       expect.objectContaining({ draft: false, prerelease: false, make_latest: 'legacy' }),
     )
     expect(upload.mock.invocationCallOrder[0]).toBeLessThan(publish.mock.invocationCallOrder[0])
+    expect(args.release.draft).toBe(false)
+    expect(args.release.body).toContain("## What's Changed\nRelease notes")
+    expect(args.release.body).not.toContain('安装包正在构建')
+    for (const name of [...expectedAssets(version), 'SHA256SUMS.txt']) {
+      expect(args.fetchUrl).toHaveBeenCalledWith(
+        `https://github.com/XPoet/memo-box/releases/download/v${version}/${name}`,
+        expect.objectContaining({ method: 'HEAD', redirect: 'follow' }),
+      )
+    }
+    expect(publish.mock.invocationCallOrder[0]).toBeLessThan(
+      args.fetchUrl.mock.invocationCallOrder[0],
+    )
+  })
+
+  it('公开链接返回 404 时不报告发布成功，重跑只检查链接', async () => {
+    const args = fixture()
+    args.fetchUrl.mockResolvedValue({ ok: false, status: 404 })
+    await expect(publishRelease(args)).rejects.toThrow('HTTP 404')
+    expect(args.release.draft).toBe(false)
+    expect(args.core.info).not.toHaveBeenCalledWith(expect.stringContaining('已发布 v'))
+    args.fetchUrl.mockResolvedValue({ ok: true, status: 200 })
+    await publishRelease(args)
+    expect(args.github.rest.repos.updateRelease).toHaveBeenCalledOnce()
+    expect(args.fetchUrl).toHaveBeenCalledTimes(9)
+    expect(args.wait).toHaveBeenCalledTimes(3)
+  })
+
+  it('公开下载地址短暂返回 404 时重试，成功后继续检查其他安装包', async () => {
+    const args = fixture()
+    args.fetchUrl.mockResolvedValueOnce({ ok: false, status: 404 })
+    await publishRelease(args)
+    expect(args.fetchUrl).toHaveBeenCalledTimes(6)
+    expect(args.wait).toHaveBeenCalledWith(3000)
+  })
+
+  it('GitHub 未将草稿公开时停止，不检查下载链接', async () => {
+    const args = fixture()
+    args.github.rest.repos.updateRelease.mockResolvedValue({ data: args.release })
+    await expect(publishRelease(args)).rejects.toThrow('仍为草稿')
+    expect(args.fetchUrl).not.toHaveBeenCalled()
   })
 
   it('重试发布时复用校验内容相同的 SHA256SUMS.txt', async () => {
