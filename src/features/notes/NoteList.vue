@@ -23,7 +23,7 @@ const query = shallowRef('')
 const listItems = useTemplateRef<ScrollbarInstance>('listItems')
 const scrollTop = shallowRef(0)
 const viewportHeight = shallowRef(600)
-const itemHeight = 144
+const itemHeight = 96
 const renderBuffer = 6
 const visibleNotes = computed(() => {
   const keyword = query.value.trim().toLocaleLowerCase()

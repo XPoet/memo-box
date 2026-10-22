@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Calendar, Clock, StarFilled } from '@element-plus/icons-vue'
+import { StarFilled } from '@element-plus/icons-vue'
 import { computed, shallowRef } from 'vue'
 import { NOTE_DRAG_TYPE, type NoteSummary } from '@/types/notes'
 
@@ -25,16 +25,6 @@ const displayTitle = computed(() => {
   const title = props.note.title.trim()
   return title.length > 0 ? title : '无标题笔记'
 })
-
-const timestampFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-})
-const createdLabel = computed(() => timestampFormatter.format(new Date(props.note.createdAt)))
-const updatedLabel = computed(() => timestampFormatter.format(new Date(props.note.updatedAt)))
 </script>
 
 <template>
@@ -55,16 +45,13 @@ const updatedLabel = computed(() => timestampFormatter.format(new Date(props.not
         <StarFilled />
       </el-icon>
     </span>
-    <span class="note-list-item-preview">{{ note.contentPreview || '尚未记录内容' }}</span>
-    <span class="note-list-item-tags">{{ note.tagNames.map((x) => `#${x}`).join(' ') || '' }}</span>
-    <span class="note-list-item-times">
-      <span class="note-list-item-time" :title="`创建时间：${createdLabel}`">
-        <el-icon aria-hidden="true"><Calendar /></el-icon>
-        <time :datetime="note.createdAt">{{ createdLabel }}</time>
-      </span>
-      <span class="note-list-item-time" :title="`更新时间：${updatedLabel}`">
-        <el-icon aria-hidden="true"><Clock /></el-icon>
-        <time :datetime="note.updatedAt">{{ updatedLabel }}</time>
+    <span
+      class="note-list-item-content"
+      :class="{ 'note-list-item-content--tagged': note.tagNames.length > 0 }"
+    >
+      <span class="note-list-item-preview">{{ note.contentPreview || '尚未记录内容' }}</span>
+      <span v-if="note.tagNames.length > 0" class="note-list-item-tags">
+        {{ note.tagNames.map((x) => `#${x}`).join(' ') }}
       </span>
     </span>
   </button>
@@ -73,11 +60,11 @@ const updatedLabel = computed(() => timestampFormatter.format(new Date(props.not
 <style scoped lang="scss">
 .note-list-item {
   display: grid;
-  grid-template-rows: 18px 18px 14px 36px;
+  grid-template-rows: 20px minmax(0, 1fr);
   gap: var(--space-8);
   inline-size: 100%;
-  block-size: 140px;
-  padding: 14px;
+  block-size: 92px;
+  padding: var(--space-12) 14px;
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: var(--radius-8);
@@ -106,18 +93,19 @@ const updatedLabel = computed(() => timestampFormatter.format(new Date(props.not
   border-color: var(--color-accent);
 }
 
+.note-list-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
 .note-list-item-title-row {
   display: flex;
   align-items: center;
+  gap: var(--space-8);
   min-inline-size: 0;
 }
 
-.note-list-item-title-row {
-  gap: var(--space-8);
-}
-
-.note-list-item-title,
-.note-list-item-preview {
+.note-list-item-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -138,6 +126,10 @@ const updatedLabel = computed(() => timestampFormatter.format(new Date(props.not
 }
 
 .note-list-item-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   color: var(--color-text-secondary);
   font-size: 0.75rem;
   line-height: 1.5;
@@ -150,29 +142,22 @@ const updatedLabel = computed(() => timestampFormatter.format(new Date(props.not
   white-space: nowrap;
   color: var(--color-accent-active);
   font-size: 0.625rem;
+  line-height: 14px;
 }
 
-.note-list-item-times {
-  display: flex;
-  justify-content: space-between;
+.note-list-item-content {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--space-4);
+  min-inline-size: 0;
+  min-block-size: 0;
 }
 
-.note-list-item-time {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-text-muted);
-  font-size: 0.6875rem;
-  line-height: 16px;
-  white-space: nowrap;
+.note-list-item-content--tagged {
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
-.note-list-item-time .el-icon {
-  flex: 0 0 auto;
-  font-size: 0.75rem;
-}
-
-.note-list-item-time time {
-  font-variant-numeric: tabular-nums;
+.note-list-item-content--tagged .note-list-item-preview {
+  -webkit-line-clamp: 1;
 }
 </style>

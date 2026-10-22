@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { Delete, Download, Folder, MoreFilled, Star, StarFilled } from '@element-plus/icons-vue'
+import {
+  Calendar,
+  Clock,
+  Delete,
+  Download,
+  Folder,
+  MoreFilled,
+  Star,
+  StarFilled,
+} from '@element-plus/icons-vue'
 import { computed, useTemplateRef, watch } from 'vue'
 import EditorStatusBar from './EditorStatusBar.vue'
 import MarkdownEditor from './MarkdownEditor.vue'
@@ -38,6 +47,19 @@ const markdownEditor = useTemplateRef<{ focus: () => void }>('markdownEditor')
 const noteId = computed(() => props.note?.id)
 const noteCategoryPath = computed(
   () => findCategoryPath(props.categories, props.note?.categoryId) ?? '未分类',
+)
+const timestampFormatter = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+const createdLabel = computed(() =>
+  props.note === undefined ? '' : timestampFormatter.format(new Date(props.note.createdAt)),
+)
+const updatedLabel = computed(() =>
+  props.note === undefined ? '' : timestampFormatter.format(new Date(props.note.updatedAt)),
 )
 
 watch(noteId, () => {
@@ -80,44 +102,81 @@ defineExpose({ focusEditor })
 
 <template>
   <section v-if="note !== undefined" class="note-editor">
-    <header class="note-editor-header">
-      <p class="note-editor-location">
-        <el-icon><Folder /></el-icon>
-        {{ noteCategoryPath }}
-      </p>
-      <div class="note-editor-actions">
-        <el-button
-          text
-          circle
-          :icon="note.isPinned ? StarFilled : Star"
-          @click="emit('togglePin')"
-        />
-        <el-button text circle :icon="Download" @click="emit('export')" />
-        <el-button text type="danger" circle :icon="Delete" @click="emit('trash')" />
-        <el-popover placement="bottom-end" :width="360" trigger="click">
-          <template #reference>
-            <el-button text circle :icon="MoreFilled" />
-          </template>
-          <NoteMetadata
-            :categories="categories"
-            :category-id="note.categoryId"
-            :tags="tags"
-            :selected-tag-ids="selectedTagIds"
-            @create-tag="emit('createTag', $event)"
-            @update-category="emit('updateCategory', $event)"
-            @update-tags="emit('updateTags', $event)"
-          />
-        </el-popover>
-      </div>
-    </header>
     <div class="note-editor-content">
-      <el-input
-        ref="titleInput"
-        class="note-title-input"
-        :model-value="note.title"
-        placeholder="无标题笔记"
-        @update:model-value="updateTitle"
-      />
+      <header class="note-editor-heading">
+        <el-input
+          ref="titleInput"
+          class="note-title-input"
+          :model-value="note.title"
+          placeholder="无标题笔记"
+          aria-label="笔记标题"
+          @update:model-value="updateTitle"
+        />
+        <div class="note-editor-toolbar">
+          <p class="note-editor-location" :title="noteCategoryPath">
+            <el-icon aria-hidden="true"><Folder /></el-icon>
+            <span>{{ noteCategoryPath }}</span>
+          </p>
+          <p class="note-editor-time note-editor-created">
+            <el-icon aria-hidden="true"><Calendar /></el-icon>
+            <span>创建于</span>
+            <time :datetime="note.createdAt">{{ createdLabel }}</time>
+          </p>
+          <p class="note-editor-time note-editor-updated">
+            <el-icon aria-hidden="true"><Clock /></el-icon>
+            <span>更新于</span>
+            <time :datetime="note.updatedAt">{{ updatedLabel }}</time>
+          </p>
+          <div class="note-editor-actions">
+            <el-button
+              text
+              circle
+              :icon="note.isPinned ? StarFilled : Star"
+              :title="note.isPinned ? '取消置顶' : '置顶笔记'"
+              :aria-label="note.isPinned ? '取消置顶' : '置顶笔记'"
+              :aria-pressed="note.isPinned"
+              @click="emit('togglePin')"
+            />
+            <el-button
+              text
+              circle
+              :icon="Download"
+              title="导出笔记"
+              aria-label="导出笔记"
+              @click="emit('export')"
+            />
+            <el-button
+              text
+              type="danger"
+              circle
+              :icon="Delete"
+              title="移入回收站"
+              aria-label="移入回收站"
+              @click="emit('trash')"
+            />
+            <el-popover placement="bottom-end" :width="360" trigger="click">
+              <template #reference>
+                <el-button
+                  text
+                  circle
+                  :icon="MoreFilled"
+                  title="分类与标签"
+                  aria-label="分类与标签"
+                />
+              </template>
+              <NoteMetadata
+                :categories="categories"
+                :category-id="note.categoryId"
+                :tags="tags"
+                :selected-tag-ids="selectedTagIds"
+                @create-tag="emit('createTag', $event)"
+                @update-category="emit('updateCategory', $event)"
+                @update-tags="emit('updateTags', $event)"
+              />
+            </el-popover>
+          </div>
+        </div>
+      </header>
       <MissingAssetNotice v-if="missingAssetCount" :missing-asset-count="missingAssetCount" />
       <div class="note-editor-body">
         <MarkdownEditor
@@ -148,34 +207,68 @@ defineExpose({ focusEditor })
 <style scoped lang="scss">
 .note-editor {
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr) 34px;
+  grid-template-rows: minmax(0, 1fr) 34px;
+  min-inline-size: 0;
   min-block-size: 0;
   block-size: 100%;
-}
-
-.note-editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-16);
-  padding: 0 var(--space-24);
-  overflow: hidden;
-  border-block-end: 1px solid var(--color-divider);
-  background: var(--color-surface);
 }
 
 .note-editor-location {
   display: flex;
   align-items: center;
-  gap: var(--space-8);
+  gap: 6px;
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
 }
 
 .note-editor-location .el-icon {
+  flex: 0 0 auto;
   color: var(--color-accent);
   font-size: 0.875rem;
+}
+
+.note-editor-location span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-editor-heading {
+  display: grid;
+  gap: var(--space-16);
+  min-inline-size: 0;
+  padding-block-end: var(--space-16);
+  border-block-end: 1px solid var(--color-divider);
+}
+
+.note-editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-16);
+  min-inline-size: 0;
+}
+
+.note-editor-time {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.note-editor-time .el-icon,
+.note-editor-time > span {
+  color: var(--color-text-muted);
+}
+
+.note-editor-time time {
+  font-variant-numeric: tabular-nums;
 }
 
 .note-title-input {
@@ -184,7 +277,7 @@ defineExpose({ focusEditor })
 }
 
 .note-title-input :deep(.el-input__wrapper) {
-  min-block-size: 50px;
+  min-block-size: 40px;
   padding: 0;
   background: transparent;
   box-shadow: none;
@@ -195,7 +288,7 @@ defineExpose({ focusEditor })
   block-size: auto;
   color: var(--color-text-primary);
   caret-color: var(--color-accent);
-  font-size: 2.2rem;
+  font-size: 1.875rem;
   font-weight: 600;
   line-height: 1.25;
 }
@@ -203,7 +296,11 @@ defineExpose({ focusEditor })
 .note-editor-actions {
   display: flex;
   align-items: center;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  gap: var(--space-4);
+  margin-inline-start: auto;
+  padding-inline-start: var(--space-12);
+  border-inline-start: 1px solid var(--color-divider);
 }
 
 .note-editor-body {
@@ -211,9 +308,7 @@ defineExpose({ focusEditor })
   grid-row: 3;
   grid-template-rows: minmax(0, 1fr);
   min-block-size: 0;
-  margin-block-start: var(--space-8);
   overflow: hidden;
-  border-block-start: 1px solid var(--color-divider);
 }
 
 .note-editor-markdown {
@@ -225,25 +320,21 @@ defineExpose({ focusEditor })
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
+  min-inline-size: 0;
   min-block-size: 0;
   gap: 0;
-  padding: 20px 30px 0;
+  padding: var(--space-24) var(--space-32) 0;
   overflow: hidden;
   background: var(--color-canvas);
 }
 
 @media (max-width: 900px) {
-  .note-editor-header {
+  .note-editor-content {
     padding-inline: var(--space-16);
   }
 
-  .note-editor-location {
-    display: none;
-  }
-
-  .note-editor-content {
-    padding-inline: var(--space-24);
-    padding-block-start: var(--space-32);
+  .note-title-input :deep(.el-input__inner) {
+    font-size: 1.625rem;
   }
 }
 
