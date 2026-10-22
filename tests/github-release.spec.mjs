@@ -153,6 +153,11 @@ function fixture() {
           const key = ref.replace('refs/', '')
           if (refs.has(key)) throw Object.assign(new Error('Already exists'), { status: 422 })
           refs.set(key, value)
+          for (const draft of releases) {
+            if (draft.draft && `tags/${draft.tag_name}` === key) {
+              draft.tag_name = `untagged-${draft.id}`
+            }
+          }
           return { data: { object: { type: 'commit', sha: value } } }
         }),
         updateRef: vi.fn().mockImplementation(async ({ ref, sha: value, force }) => {
@@ -335,6 +340,56 @@ describe('GitHub 自动发布', () => {
     expect(args.github.rest.git.createCommit).toHaveBeenCalledOnce()
     expect(args.refs.get('tags/v0.0.11')).toBe(first)
     expect(args.refs.has('tags/v0.0.12')).toBe(false)
+  })
+
+  it('创建标签导致草稿变为 untagged 后重新绑定，后续上传和发布校验通过', async () => {
+    const args = fixture()
+    await prepareRelease(args)
+    const commitSha = args.refs.get('tags/v0.0.11')
+    expect(args.github.rest.repos.updateRelease).toHaveBeenCalledWith(
+      expect.objectContaining({
+        release_id: args.release.id,
+        tag_name: 'v0.0.11',
+        target_commitish: commitSha,
+      }),
+    )
+    expect(args.release.tag_name).toBe('v0.0.11')
+    for (const path of versionPaths)
+      writeFileSync(join(args.root, path), args.commits.get(commitSha).files[path])
+    for (const [index, asset] of args.assets.entries()) asset.name = expectedAssets('0.0.11')[index]
+    await uploadInstallers({ ...args, commitSha, target: 'aarch64-apple-darwin' })
+    await publishRelease({ ...args, commitSha })
+    expect(args.release.draft).toBe(false)
+  })
+
+  it('草稿重新绑定失败后，重跑复用原版本并验证快照后恢复标签', async () => {
+    const args = fixture()
+    args.github.rest.repos.updateRelease.mockRejectedValueOnce(new Error('Temporary failure'))
+    await expect(prepareRelease(args)).rejects.toThrow('Temporary failure')
+    expect(args.releases[0].tag_name).toBe(`untagged-${args.release.id}`)
+    const reservedSha = args.refs.get('tags/v0.0.11')
+    await prepareRelease(args)
+    expect(args.release.tag_name).toBe('v0.0.11')
+    expect(args.refs.get('heads/main')).toBe(reservedSha)
+    expect(args.github.rest.repos.createRelease).toHaveBeenCalledOnce()
+    expect(args.github.rest.git.createCommit).toHaveBeenCalledOnce()
+    expect(args.refs.has('tags/v0.0.12')).toBe(false)
+  })
+
+  it.each(['target', 'source'])('恢复 untagged 草稿时拒绝被修改的 %s', async (scenario) => {
+    const args = fixture()
+    Object.assign(args.release, {
+      tag_name: 'untagged-abc123',
+      name: `MemoBox v${version}`,
+    })
+    args.releases.push(args.release)
+    if (scenario === 'target') args.release.target_commitish = otherSha
+    if (scenario === 'source') args.commits.get(snapshotSha).parents = [{ sha: otherSha }]
+    await expect(prepareRelease(args)).rejects.toThrow(
+      scenario === 'target' ? '目标提交被修改' : '版本快照不一致',
+    )
+    expect(args.github.rest.repos.updateRelease).not.toHaveBeenCalled()
+    expect(args.github.rest.git.updateRef).not.toHaveBeenCalled()
   })
 
   it('创建草稿时目标已是版本快照，服务端提前创建标签也可继续', async () => {

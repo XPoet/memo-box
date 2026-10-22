@@ -35,6 +35,15 @@ function tagVersion(tag) {
   return /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(tag) ? tag.slice(1) : null
 }
 
+function reservedReleaseVersion(release) {
+  const version = tagVersion(release.tag_name)
+  if (version) return version
+  if (release.draft && /^untagged-[a-f0-9]+$/.test(release.tag_name)) {
+    return tagVersion(release.name?.replace(/^MemoBox /, ''))
+  }
+  return null
+}
+
 export function expectedAssets(version) {
   return [
     `MemoBox_${version}_windows_x64-setup.exe`,
@@ -206,11 +215,11 @@ export async function prepareRelease({ github, context, core, root }) {
     const recorded = releases
       .filter(
         (item) =>
-          tagVersion(item.tag_name) &&
+          reservedReleaseVersion(item) &&
           /<!-- memobox-release-source: [a-f0-9]{40} -->/.test(item.body ?? ''),
       )
       .sort((left, right) =>
-        compareVersions(tagVersion(right.tag_name), tagVersion(left.tag_name)),
+        compareVersions(reservedReleaseVersion(right), reservedReleaseVersion(left)),
       )[0]
     if (recorded) {
       const head = recorded.body.match(/<!-- memobox-release-source: ([a-f0-9]{40}) -->/)[1]
@@ -230,7 +239,7 @@ export async function prepareRelease({ github, context, core, root }) {
   }
   const state =
     release && !release.draft ? null : await mainState(github, repo, sourceSha, contents)
-  let version = release ? tagVersion(release.tag_name) : null
+  let version = release ? reservedReleaseVersion(release) : null
   let sha
   if (release && !version) throw new Error('已有 Release 使用了无效的正式版本标签。')
   if (!release) {
@@ -238,7 +247,7 @@ export async function prepareRelease({ github, context, core, root }) {
     const versions = [
       currentVersion,
       state.version,
-      ...releases.map((item) => tagVersion(item.tag_name)),
+      ...releases.map(reservedReleaseVersion),
       ...refs.map((item) => tagVersion(item.ref.replace('refs/tags/', ''))),
     ].filter((item) => item !== null)
     const baseline = versions.reduce((highest, item) =>
@@ -260,7 +269,8 @@ export async function prepareRelease({ github, context, core, root }) {
     ).data
   }
   const tag = `v${version}`
-  checkRelease(release, tag, sourceSha)
+  const needsTagBinding = release.draft && release.tag_name !== tag
+  checkRelease(needsTagBinding ? { ...release, tag_name: tag } : release, tag, sourceSha)
   const ref = await getTag(github, repo, tag)
   if (ref) {
     if (ref.object.type !== 'commit') throw new Error(`${tag} 不是自动发布的提交标签。`)
@@ -278,12 +288,21 @@ export async function prepareRelease({ github, context, core, root }) {
     sha ??= await versionCommit(github, repo, sourceSha, contents, version, sourceSha)
     if (![sourceSha, sha].includes(release.target_commitish))
       throw new Error('草稿 Release 的目标提交被修改，停止发布。')
-    await github.rest.repos.updateRelease({
-      ...repo,
-      release_id: release.id,
-      target_commitish: sha,
-    })
     await github.rest.git.createRef({ ...repo, ref: `refs/tags/${tag}`, sha })
+  }
+  if (!ref || needsTagBinding) {
+    if (needsTagBinding && release.target_commitish !== sha)
+      throw new Error('草稿 Release 的目标提交被修改，停止发布。')
+    // 创建标签后 GitHub 可能将先前的草稿改为 untagged-*，显式重新绑定正式标签。
+    release = (
+      await github.rest.repos.updateRelease({
+        ...repo,
+        release_id: release.id,
+        tag_name: tag,
+        target_commitish: sha,
+      })
+    ).data
+    checkRelease(release, tag, sourceSha)
   }
   if (release.draft)
     await syncMainVersion({
