@@ -1,4 +1,4 @@
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -172,12 +172,16 @@ fn write_atomically(
         let _ = fs::remove_file(temporary_path);
         return Err(map_storage_error(error));
     }
-    sync_parent_directory(final_path)
+    // Windows 不支持以普通文件方式打开并同步目录；文件内容已在重命名前同步。
+    #[cfg(unix)]
+    sync_parent_directory(final_path)?;
+    Ok(())
 }
 
+#[cfg(unix)]
 fn sync_parent_directory(path: &Path) -> Result<(), AssetError> {
     let parent = path.parent().ok_or(AssetError::StorageUnavailable)?;
-    File::open(parent)
+    fs::File::open(parent)
         .and_then(|directory| directory.sync_all())
         .map_err(map_storage_error)
 }

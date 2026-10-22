@@ -65,7 +65,7 @@ Get-FileHash .\MemoBox_0.0.11_windows_x64-setup.exe -Algorithm SHA256
 
 工作流位于 [release.yml](../.github/workflows/release.yml)，发布校验逻辑位于 [github-release.mjs](../scripts/github-release.mjs)。
 
-1. **prepare** 校验四处正式版本号一致，自动分配 patch 并在草稿中记录原始合并来源，生成只变更版本文件的提交及 `v<版本号>` 标签，再将版本同步回 `main`。若 `main` 已有新的开发提交，同步提交基于最新 `main`，保留其余代码；构建仍固定使用原始合并对应的版本快照。更新分支只允许快进，分支继续前进时重新读取并有限重试。
+1. **prepare** 校验四处正式版本号一致，自动分配 patch 并在草稿中记录原始合并来源，生成只变更版本文件的提交及 `v<版本号>` 标签。创建标签后显式将草稿重新绑定到正式标签，并校验 GitHub 返回结果，避免草稿变为 `untagged-*` 后阻止安装包上传；随后将版本同步回 `main`。若 `main` 已有新的开发提交，同步提交基于最新 `main`，保留其余代码；构建仍固定使用原始合并对应的版本快照。更新分支只允许快进，分支继续前进时重新读取并有限重试。
 2. **build** 使用 `pnpm install --frozen-lockfile` 安装依赖，并通过 `--locked` 固定 Rust 依赖。Apple Silicon job 运行完整前端检查；三个原生平台分别运行 rustfmt、Clippy、Rust 测试，再构建并上传安装包。任何一个平台失败都保留草稿。
 3. **publish** 再次核对版本标签和合并提交，确认四个安装包上传完成、大小大于零且 GitHub 提供 SHA-256 摘要，将摘要写入 `SHA256SUMS.txt` 后公开 Release。最新版由 GitHub 的版本排序规则确定，避免较旧版本稍后完成时覆盖较新版本的 Latest 标记。
 
