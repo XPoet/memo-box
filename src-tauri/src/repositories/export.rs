@@ -43,6 +43,26 @@ struct CategoryRecord {
 }
 
 impl ExportRepository {
+    pub fn snapshot_all(connection: &mut Connection) -> Result<ExportSnapshot, ExportError> {
+        let transaction = connection
+            .transaction()
+            .map_err(|_| ExportError::Snapshot)?;
+        let category_paths = read_category_paths(&transaction)?;
+        let mut notes = read_notes(
+            &transaction,
+            "SELECT id, title, content, category_id FROM notes
+             WHERE is_deleted = 0 ORDER BY updated_at DESC, id DESC",
+            [],
+        )?;
+        assign_category_paths(&mut notes, &category_paths)?;
+        attach_assets(&transaction, &mut notes)?;
+        transaction.commit().map_err(|_| ExportError::Snapshot)?;
+        Ok(ExportSnapshot {
+            scope_label: "全部笔记".to_owned(),
+            notes,
+        })
+    }
+
     pub fn snapshot(
         connection: &mut Connection,
         scope: &ExportScope,
@@ -68,7 +88,7 @@ fn snapshot_in_transaction(
                 "SELECT id, title, content, category_id FROM notes
                      WHERE id = ?1 AND is_deleted = 0
                      ORDER BY updated_at DESC, id DESC",
-                &scope.id,
+                params![scope.id],
             )?;
             if notes.is_empty() {
                 return Err(ExportError::ScopeNotFound);
@@ -86,7 +106,7 @@ fn snapshot_in_transaction(
                 "SELECT id, title, content, category_id FROM notes
                      WHERE category_id IS NULLIF(?1, 'uncategorized') AND is_deleted = 0
                      ORDER BY updated_at DESC, id DESC",
-                &scope.id,
+                params![scope.id],
             )?;
             (name, notes)
         }
@@ -104,7 +124,7 @@ fn snapshot_in_transaction(
                      FROM notes INNER JOIN descendants ON descendants.id = notes.category_id
                      WHERE notes.is_deleted = 0
                      ORDER BY notes.updated_at DESC, notes.id DESC",
-                &scope.id,
+                params![scope.id],
             )?;
             (name, notes)
         }
@@ -117,7 +137,7 @@ fn snapshot_in_transaction(
                      INNER JOIN note_tags ON note_tags.note_id = notes.id
                      WHERE note_tags.tag_id = ?1 AND notes.is_deleted = 0
                      ORDER BY notes.updated_at DESC, notes.id DESC",
-                &scope.id,
+                params![scope.id],
             )?;
             (name, notes)
         }
@@ -130,11 +150,11 @@ fn snapshot_in_transaction(
 fn read_notes(
     connection: &Connection,
     sql: &str,
-    scope_id: &str,
+    parameters: impl rusqlite::Params,
 ) -> Result<Vec<ExportNote>, ExportError> {
     let mut statement = connection.prepare(sql).map_err(|_| ExportError::Snapshot)?;
     let rows = statement
-        .query_map(params![scope_id], |row| {
+        .query_map(parameters, |row| {
             Ok(ExportNote {
                 id: row.get(0)?,
                 title: row.get(1)?,

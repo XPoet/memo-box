@@ -1,9 +1,11 @@
 pub mod assets;
+pub mod backup;
 pub mod bootstrap;
 pub mod categories;
 pub mod export;
 pub mod notes;
 pub mod search;
 pub mod settings;
+pub mod shutdown;
 pub mod tags;
 pub mod trash;

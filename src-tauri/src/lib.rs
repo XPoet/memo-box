@@ -4,6 +4,10 @@ mod domain;
 mod repositories;
 mod services;
 
+use tauri::Manager;
+
+use services::shutdown::ShutdownState;
+
 pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -20,6 +24,13 @@ pub fn run() -> Result<(), tauri::Error> {
             Ok(())
         })
         .manage(services::export::ExportTaskRegistry::default())
+        .manage(ShutdownState::default())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                window.state::<ShutdownState>().request(window.app_handle());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::bootstrap::bootstrap_app,
             commands::bootstrap::show_main_window,
@@ -64,5 +75,15 @@ pub fn run() -> Result<(), tauri::Error> {
             commands::trash::permanently_delete_note,
             commands::trash::empty_trash,
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())?
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                let shutdown = app.state::<ShutdownState>();
+                if !shutdown.is_complete() {
+                    api.prevent_exit();
+                    shutdown.request(app);
+                }
+            }
+        });
+    Ok(())
 }

@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { getNoteAssetHealth, savePastedImage, toAssetError } from '@/services/assets'
-import { exitApplication } from '@/services/window'
 import { useAutoSave } from '@/composables/useAutoSave'
 import NoteEditor from '@/features/editor/NoteEditor.vue'
 import ExportDialog from '@/features/export/ExportDialog.vue'
@@ -65,8 +63,6 @@ const activeCategoryId = computed(() => {
   const categoryId = typeof route.query.category === 'string' ? route.query.category : undefined
   return categoryId === UNCATEGORIZED_CATEGORY_ID ? undefined : categoryId
 })
-let unlistenCloseRequested: (() => void) | undefined
-let isHandlingClose = false
 
 function findCategoryName(categories: CategoryNode[], categoryId: string): string | undefined {
   for (const category of categories) {
@@ -337,28 +333,10 @@ async function handleTogglePin(): Promise<void> {
 onMounted(async () => {
   await Promise.all([categoriesStore.load(), tagsStore.load()])
   window.addEventListener('keydown', handleKeyboardShortcut)
-  try {
-    unlistenCloseRequested = await getCurrentWindow().onCloseRequested(async (event) => {
-      event.preventDefault()
-      if (isHandlingClose) {
-        return
-      }
-      isHandlingClose = true
-      try {
-        await autoSave.flush()
-        await exitApplication()
-      } catch {
-        ElMessage.error('笔记保存失败，已取消关闭。')
-      } finally {
-        isHandlingClose = false
-      }
-    })
-  } catch {}
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeyboardShortcut)
-  unlistenCloseRequested?.()
 })
 </script>
 

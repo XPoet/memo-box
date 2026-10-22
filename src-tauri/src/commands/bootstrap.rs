@@ -1,7 +1,8 @@
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, State};
 
 use crate::domain::bootstrap::{BootstrapCommandError, BootstrapSnapshot};
 use crate::services::bootstrap::BootstrapService;
+use crate::services::shutdown::ShutdownState;
 
 #[tauri::command]
 pub async fn bootstrap_app(app: AppHandle) -> Result<BootstrapSnapshot, BootstrapCommandError> {
@@ -36,6 +37,9 @@ pub fn show_main_window(app: AppHandle) -> Result<(), BootstrapCommandError> {
 }
 
 #[tauri::command]
-pub fn exit_application(app: AppHandle) {
-    app.exit(0);
+pub async fn exit_application(
+    app: AppHandle,
+    shutdown: State<'_, ShutdownState>,
+) -> Result<(), BootstrapCommandError> {
+    shutdown.inner().clone().exit(app).await
 }
