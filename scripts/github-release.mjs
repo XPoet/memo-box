@@ -180,12 +180,10 @@ async function syncMainVersion({
   }
 }
 
-function releaseBody(version, context, sourceSha) {
+function downloadsTable(version, context) {
   const assets = expectedAssets(version)
   const base = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/releases/download/v${version}`
   return [
-    sourceMarker(sourceSha),
-    '',
     '从下表或页面底部的 **Assets** 下载安装包，无需自行编译。',
     '',
     '| 平台 | 下载 |',
@@ -193,6 +191,19 @@ function releaseBody(version, context, sourceSha) {
     `| Windows x64 | [安装程序 EXE](${base}/${assets[0]}) · [MSI](${base}/${assets[1]}) |`,
     `| macOS Apple Silicon（M 系列） | [DMG](${base}/${assets[2]}) |`,
     `| macOS Intel | [DMG](${base}/${assets[3]}) |`,
+  ].join('\n')
+}
+
+const downloadsStart = '<!-- memobox-downloads:start -->'
+const downloadsEnd = '<!-- memobox-downloads:end -->'
+
+function releaseBody(sourceSha) {
+  return [
+    sourceMarker(sourceSha),
+    '',
+    downloadsStart,
+    '安装包正在构建或校验，当前版本尚未公开发布。请等待 Actions 全部成功，Draft 标记消失后再下载。',
+    downloadsEnd,
     '',
     'macOS：打开 DMG，将 MemoBox 拖入“应用程序”。当前采用 ad-hoc 签名，未经 Apple 公证；首次打开被阻止时，可在系统设置 → 隐私与安全性中确认来源后选择“仍要打开”。',
     'Windows：运行 EXE 或 MSI 安装。当前未配置代码签名证书，系统可能显示未知发布者或 SmartScreen 提示。首次安装可能需要联网安装 WebView2 Runtime。',
@@ -200,6 +211,34 @@ function releaseBody(version, context, sourceSha) {
     '`SHA256SUMS.txt` 提供所有安装包的 SHA-256 校验值。GitHub 自动生成的 Source code 文件是源码，不是安装包。',
     '',
   ].join('\n')
+}
+
+function publishedReleaseBody(release, version, context) {
+  const start = release.body.indexOf(downloadsStart)
+  const end = release.body.indexOf(downloadsEnd, start)
+  if (start < 0 || end < start) throw new Error('草稿缺少下载状态标记，停止发布。')
+  return (
+    release.body.slice(0, start) +
+    downloadsTable(version, context) +
+    release.body.slice(end + downloadsEnd.length)
+  )
+}
+
+async function verifyDownloads(version, context, fetchUrl, core, wait) {
+  const base = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/releases/download/v${version}`
+  for (const name of [...expectedAssets(version), 'SHA256SUMS.txt']) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const response = await fetchUrl(`${base}/${name}`, {
+        method: 'HEAD',
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30_000),
+      })
+      if (response.ok) break
+      if (attempt === 3) throw new Error(`${name} 的公开下载链接返回 HTTP ${response.status}。`)
+      await wait(3000)
+    }
+    core.info(`公开下载链接已验证：${name}。`)
+  }
 }
 
 export async function prepareRelease({ github, context, core, root }) {
@@ -261,7 +300,7 @@ export async function prepareRelease({ github, context, core, root }) {
         tag_name: `v${version}`,
         target_commitish: sha,
         name: `MemoBox v${version}`,
-        body: releaseBody(version, context, sourceSha),
+        body: releaseBody(sourceSha),
         draft: true,
         prerelease: false,
         generate_release_notes: true,
@@ -400,7 +439,16 @@ export async function uploadInstallers({
   }
 }
 
-export async function publishRelease({ github, context, core, releaseId, commitSha, root }) {
+export async function publishRelease({
+  github,
+  context,
+  core,
+  releaseId,
+  commitSha,
+  root,
+  fetchUrl = fetch,
+  wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+}) {
   const sourceSha = releaseCommit(context)
   if (!/^[a-f0-9]{40}$/.test(commitSha ?? '')) throw new Error('缺少有效的发布提交。')
   const version = readReleaseVersion(root)
@@ -414,7 +462,8 @@ export async function publishRelease({ github, context, core, releaseId, commitS
   checkTag(ref, tag, commitSha)
   checkRelease(release, tag, sourceSha)
   if (!release.draft) {
-    core.info(`${tag} 已发布，无需重复发布。`)
+    await verifyDownloads(version, context, fetchUrl, core, wait)
+    core.info(`${tag} 已发布，公开下载链接检查通过。`)
     return
   }
   const assets = await github.paginate(github.rest.repos.listReleaseAssets, {
@@ -435,6 +484,7 @@ export async function publishRelease({ github, context, core, releaseId, commitS
     return `${asset.digest.slice(7)}  ${name}\n`
   })
   const data = Buffer.from(checksums.join(''))
+  const body = publishedReleaseBody(release, version, context)
   const checksum = assets.find((item) => item.name === 'SHA256SUMS.txt')
   if (checksum) {
     const digest = `sha256:${createHash('sha256').update(data).digest('hex')}`
@@ -450,12 +500,16 @@ export async function publishRelease({ github, context, core, releaseId, commitS
       headers: { 'content-type': 'text/plain', 'content-length': data.length },
     })
   }
-  await github.rest.repos.updateRelease({
+  const { data: published } = await github.rest.repos.updateRelease({
     ...repo,
     release_id: id,
     draft: false,
     prerelease: false,
     make_latest: 'legacy',
+    body,
   })
+  checkRelease(published, tag, sourceSha)
+  if (published.draft) throw new Error(`${tag} 仍为草稿，停止下载验收。`)
+  await verifyDownloads(version, context, fetchUrl, core, wait)
   core.info(`已发布 ${tag}：${release.html_url}`)
 }

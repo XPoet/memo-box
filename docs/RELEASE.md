@@ -4,6 +4,8 @@
 
 打开 [GitHub Releases 最新版本](https://github.com/XPoet/memo-box/releases/latest)，在下载表或 **Assets** 中选择安装包。首次自动发布成功前，仓库没有可供下载的 Release。
 
+标记为 **Draft** 的版本仍处于构建或校验阶段，不能使用正式下载地址。草稿正文只显示构建状态；四个安装包全部上传并完成校验后，工作流自动公开 Release、生成下载表，并以未登录请求验证表中四个下载链接及 `SHA256SUMS.txt`。只有发布步骤通过后，才能将本次版本作为可下载版本交付。
+
 | 平台                | 文件名                                   | 使用方式                  |
 | ------------------- | ---------------------------------------- | ------------------------- |
 | Windows x64         | `MemoBox_<版本号>_windows_x64-setup.exe` | 双击安装，适合一般用户    |
@@ -66,8 +68,8 @@ Get-FileHash .\MemoBox_0.0.11_windows_x64-setup.exe -Algorithm SHA256
 工作流位于 [release.yml](../.github/workflows/release.yml)，发布校验逻辑位于 [github-release.mjs](../scripts/github-release.mjs)。
 
 1. **prepare** 校验四处正式版本号一致，自动分配 patch 并在草稿中记录原始合并来源，生成只变更版本文件的提交及 `v<版本号>` 标签。创建标签后显式将草稿重新绑定到正式标签，并校验 GitHub 返回结果，避免草稿变为 `untagged-*` 后阻止安装包上传；随后将版本同步回 `main`。若 `main` 已有新的开发提交，同步提交基于最新 `main`，保留其余代码；构建仍固定使用原始合并对应的版本快照。更新分支只允许快进，分支继续前进时重新读取并有限重试。
-2. **build** 使用 `pnpm install --frozen-lockfile` 安装依赖，并通过 `--locked` 固定 Rust 依赖。Apple Silicon job 运行完整前端检查；三个原生平台分别运行 rustfmt、Clippy、Rust 测试，再构建并上传安装包。任何一个平台失败都保留草稿。
-3. **publish** 再次核对版本标签和合并提交，确认四个安装包上传完成、大小大于零且 GitHub 提供 SHA-256 摘要，将摘要写入 `SHA256SUMS.txt` 后公开 Release。最新版由 GitHub 的版本排序规则确定，避免较旧版本稍后完成时覆盖较新版本的 Latest 标记。
+2. **build** 使用 `pnpm install --frozen-lockfile` 安装依赖，并通过 `--locked` 固定 Rust 依赖。三个原生平台都执行发布脚本回归测试，覆盖真实工作流入口的 ESM 加载；工作流统一使用 `pathToFileURL()`，支持 Windows 盘符和路径中的特殊字符。Apple Silicon job 运行完整前端检查；三个原生平台分别运行 rustfmt、Clippy、Rust 测试，再构建安装包。macOS 校验并挂载 DMG、验证应用签名并启动应用；Windows 静默安装 EXE 后启动已安装的应用，确认进程持续运行后才上传。任何一个平台失败都保留草稿。
+3. **publish** 再次核对版本标签和合并提交，确认四个安装包上传完成、大小大于零且 GitHub 提供 SHA-256 摘要，将摘要写入 `SHA256SUMS.txt`，把草稿状态说明替换为正式下载表并公开 Release，保留自动生成的更新记录。随后逐一检查四个安装包与校验文件的公开链接，跟随重定向并对短暂 HTTP 错误有限重试；任何链接失败则任务失败，重跑已公开版本时只重验下载，不重复上传或发布。最新版由 GitHub 的版本排序规则确定，避免较旧版本稍后完成时覆盖较新版本的 Latest 标记。
 
 发布工作流串行排队，最多保留 100 个等待中的运行，避免多个合并同时分配相同版本。若较新的合并已经分配版本，旧合并的代码已被该版本包含，则跳过迟到的旧事件，避免将旧代码作为更高版本发布。
 
