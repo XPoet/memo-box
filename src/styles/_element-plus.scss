@@ -59,3 +59,12 @@
 .workspace-panels > .editor-panel {
   min-inline-size: 360px;
 }
+
+.note-editor-actions .el-button + .el-button {
+  margin-inline-start: 0;
+}
+
+.note-editor-actions .el-button {
+  inline-size: 28px;
+  block-size: 28px;
+}

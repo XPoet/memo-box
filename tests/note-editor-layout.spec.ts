@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { shallowMount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import NoteEditor from '@/features/editor/NoteEditor.vue'
 
 const noteEditorPath = resolve(process.cwd(), 'src/features/editor/NoteEditor.vue')
 const noteEditorSource = readFileSync(noteEditorPath, 'utf8')
@@ -8,6 +10,64 @@ const markdownEditorPath = resolve(process.cwd(), 'src/features/editor/MarkdownE
 const markdownEditorSource = readFileSync(markdownEditorPath, 'utf8')
 
 describe('笔记编辑器布局', () => {
+  it('在标题下展示创建和更新时间，并在保存后同步更新时间，午夜显示为 00 点', async () => {
+    const createdAt = new Date(2026, 9, 16, 0, 1, 2).toISOString()
+    const updatedAt = new Date(2026, 9, 17, 23, 59, 58).toISOString()
+    const note = {
+      id: 'note-1',
+      title: '时间展示',
+      content: '正文',
+      isPinned: false,
+      createdAt,
+      updatedAt,
+    }
+    const wrapper = shallowMount(NoteEditor, {
+      props: {
+        note,
+        saveStatus: 'saved',
+        missingAssetCount: 0,
+        saveImage: async () => '',
+        categories: [],
+        tags: [],
+        selectedTagIds: [],
+      },
+      global: {
+        stubs: {
+          ElButton: { template: '<button><slot /></button>' },
+          ElPopover: { template: '<div><slot name="reference" /><slot /></div>' },
+        },
+      },
+    })
+
+    const toolbar = wrapper.get('.note-editor-heading .note-editor-toolbar')
+    expect(toolbar.get('.note-editor-location').text()).toBe('未分类')
+    expect(toolbar.findAll('time')).toHaveLength(2)
+    expect(toolbar.get('button[aria-label="分类与标签"]').exists()).toBe(true)
+    await toolbar.get('button[aria-label="置顶笔记"]').trigger('click')
+    await toolbar.get('button[aria-label="导出笔记"]').trigger('click')
+    await toolbar.get('button[aria-label="移入回收站"]').trigger('click')
+    expect(wrapper.emitted('togglePin')).toHaveLength(1)
+    expect(wrapper.emitted('export')).toHaveLength(1)
+    expect(wrapper.emitted('trash')).toHaveLength(1)
+
+    const metadata = wrapper.get('.note-editor-heading .note-editor-created')
+    expect(metadata.text()).toContain('创建于')
+    expect(metadata.get('time').text()).toBe('2026/10/16 00:01')
+    expect(metadata.get('time').attributes('datetime')).toBe(createdAt)
+
+    const updatedMetadata = wrapper.get('.note-editor-heading .note-editor-updated')
+    expect(updatedMetadata.text()).toContain('更新于')
+    expect(updatedMetadata.get('time').text()).toBe('2026/10/17 23:59')
+    expect(updatedMetadata.get('time').attributes('datetime')).toBe(updatedAt)
+
+    const savedAt = new Date(2026, 9, 18, 0, 2, 3).toISOString()
+    await wrapper.setProps({ note: { ...note, updatedAt: savedAt } })
+    expect(updatedMetadata.get('time').text()).toBe('2026/10/18 00:02')
+    expect(updatedMetadata.get('time').attributes('datetime')).toBe(savedAt)
+    expect(metadata.get('time').attributes('datetime')).toBe(createdAt)
+    wrapper.unmount()
+  })
+
   it('限制标题输入框和内容网格的最小内联尺寸，避免超长标题撑出编辑器', () => {
     expect(noteEditorSource).toContain('grid-template-columns: minmax(0, 1fr)')
     expect(noteEditorSource).toContain(
@@ -18,8 +78,9 @@ describe('笔记编辑器布局', () => {
     )
   })
 
-  it('按设计稿保留 56px 工具栏和 34px 文档状态栏', () => {
-    expect(noteEditorSource).toContain('grid-template-rows: 56px minmax(0, 1fr) 34px')
+  it('移除标题上方的独立工具栏，保留 34px 文档状态栏', () => {
+    expect(noteEditorSource).toContain('grid-template-rows: minmax(0, 1fr) 34px')
+    expect(noteEditorSource).not.toContain('note-editor-header')
     expect(noteEditorSource).toContain(':save-status="saveStatus"')
     expect(noteEditorSource).toContain(':save-error="saveError"')
   })

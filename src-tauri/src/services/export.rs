@@ -207,6 +207,7 @@ impl ExportService {
     ) -> Result<(), ExportError> {
         let markdown_directory =
             layout.markdown_directory(scope_kind, scope_id, scope_label, &note.category_path)?;
+        fs::create_dir_all(&markdown_directory).map_err(|_| ExportError::Write)?;
         let markdown_path = layout.markdown_path(&markdown_directory, &note.title, &note.id)?;
         let mut content = note.content.clone();
         for asset in &note.assets {
@@ -250,7 +251,7 @@ impl ExportService {
     }
 }
 
-struct ExportLayout {
+pub(super) struct ExportLayout {
     output_directory: PathBuf,
     category_directories: HashMap<String, PathBuf>,
     directory_names: HashMap<PathBuf, HashSet<String>>,
@@ -258,16 +259,20 @@ struct ExportLayout {
 }
 
 impl ExportLayout {
-    fn new(output_directory: PathBuf) -> Self {
+    pub(super) fn new(output_directory: PathBuf) -> Self {
+        let directory_names = HashMap::from([(
+            output_directory.clone(),
+            HashSet::from(["assets".to_owned()]),
+        )]);
         Self {
             output_directory,
             category_directories: HashMap::new(),
-            directory_names: HashMap::new(),
+            directory_names,
             file_names: HashMap::new(),
         }
     }
 
-    fn markdown_directory(
+    pub(super) fn markdown_directory(
         &mut self,
         scope_kind: ExportScopeKind,
         scope_id: &str,
@@ -318,11 +323,10 @@ impl ExportLayout {
         let base = sanitize_file_name(preferred_name, identifier);
         let name = unique_name(names, &base, identifier, "");
         let directory = parent.join(name);
-        fs::create_dir(&directory).map_err(|_| ExportError::Write)?;
         Ok(directory)
     }
 
-    fn markdown_path(
+    pub(super) fn markdown_path(
         &mut self,
         directory: &Path,
         title: &str,
@@ -393,7 +397,7 @@ fn create_output_directory(target_directory: &Path) -> Result<(PathBuf, String),
     Err(ExportError::TargetUnavailable)
 }
 
-fn controlled_asset_file_name(asset: &ExportAsset) -> Result<&str, ExportError> {
+pub(super) fn controlled_asset_file_name(asset: &ExportAsset) -> Result<&str, ExportError> {
     let expected_relative_path = format!("assets/{}", asset.file_name);
     let file_name = Path::new(&asset.file_name)
         .file_name()
@@ -407,7 +411,7 @@ fn controlled_asset_file_name(asset: &ExportAsset) -> Result<&str, ExportError> 
     Ok(file_name)
 }
 
-fn asset_reference(
+pub(super) fn asset_reference(
     markdown_path: &Path,
     output_directory: &Path,
     file_name: &str,
@@ -423,7 +427,7 @@ fn asset_reference(
     Ok(format!("{}assets/{file_name}", "../".repeat(depth)))
 }
 
-fn replace_asset_reference(
+pub(super) fn replace_asset_reference(
     content: &str,
     source_relative_path: &str,
     target_relative_path: &str,

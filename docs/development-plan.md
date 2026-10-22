@@ -8,6 +8,8 @@
 > 计划状态：M5 自用候选进行中；T12 已完成，下一任务为 T13 macOS V1.0 自用候选
 > 计划事实来源：`docs/PRD-V1.0.md`、`docs/design/memo-box.pen`、`docs/TECHNICAL-DESIGN.md`
 
+> 2026-10-20 范围补充：用户要求支持本仓库 `develop` → `main` 合并后，通过 GitHub Actions 自动递增 patch、同步并提交四个版本文件到 `main`、构建并公开发布 Windows x64 和 macOS Apple Silicon／Intel 安装包。同一次合并重跑不重复递增，日常发版不再要求手动执行 `pnpm release`；发布流程与下载说明见 [RELEASE.md](RELEASE.md)。此次范围包含未配置发布者证书的 GitHub 下载分发，macOS 使用 ad-hoc 签名；下文历史 T15 中的 Developer ID 签名、公证验收继续作为独立的后续范围。
+
 ## 1. 计划定位与使用方式
 
 本文档是 MemoBox V1.0 的总开发路线和状态单一事实来源。后续开发必须按任务顺序推进；每次只启动一个可独立验收的业务闭环，完成实现、自动化验证、原生应用验收、文档同步和 Git 差异审查后，才能更新状态并进入下一任务。

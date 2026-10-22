@@ -45,6 +45,18 @@
 
 前端只可在本地数据和设置初始化完成、首帧 UI 已绘制后，通过 TypeScript Window Service 调用。Command 只操作固定标签为 `main` 的应用窗口，显示并聚焦该窗口；不接收窗口标签、路径或其他前端参数。原生窗口创建时使用与启动面板一致的暖色背景，避免页面资源尚未加载时暴露系统白底。失败复用 `BootstrapError` 的安全错误码和提示。
 
+### 2.2 应用关闭与 `exit_application`
+
+原生层拦截窗口 `CloseRequested` 和应用 `ExitRequested`，向固定 `main` 窗口发送无载荷事件 `memo-box-exit-requested`。Vue 应用根部通过 Window Service 注册监听，所有路由共用同一关闭流程，不依赖工作台是否挂载。
+
+前端串行保存当前草稿，保存期间若有新的编辑则继续保存最新版本；保存失败时阻止关闭并展示重试提示。保存成功后调用 `exit_application`，无参数，成功返回空值，窗口操作失败复用 `BootstrapError`。重复关闭请求不会启动多份备份。
+
+Command 委托 Shutdown Service 隐藏主窗口并等待后台阻塞任务：Backup Service 通过 Export Repository 在同一数据库事务中读取所有未删除笔记、分类层级和关联图片，生成应用数据目录内固定的 `backups/MemoBox-latest.zip`。本功能不接受前端路径，也不受手动导出默认目录或当前筛选条件影响。
+
+ZIP 内按分类层级保存 Markdown，未分类笔记放入“未分类”目录；图片集中保存在 `assets` 并改写相对引用。分类和笔记重名时沿用手动导出的文件名清理、冲突编号规则。回收站、标签、应用设置和数据库文件不参与本次 Markdown 导出。
+
+后台直接流式写入同目录 `MemoBox-latest.zip.part`，完成 ZIP 尾部写入并同步文件后，以重命名替换 `MemoBox-latest.zip`。正常结束只保留一份 ZIP；任务失败会清理本次中间文件、保留上一份完整 ZIP，不弹出导出进度或错误提示，随后退出进程。后台任务结束前持续拦截重复退出，结束后才允许进程退出。启动未完成或数据库不可用时不得创建空库覆盖旧备份；强制结束、崩溃和断电不在关闭事件保证范围内。
+
 ## 3. 前端状态
 
 `app` Pinia Store 管理 `idle`、`loading`、`ready`、`failed` 四种启动状态。只有该 Store 的 `ready` 才渲染路由；设置 Store 的临时加载状态不得切换回启动遮罩。当前接口不提供修改或迁移数据目录的能力。

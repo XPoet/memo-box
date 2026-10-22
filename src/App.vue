@@ -2,6 +2,9 @@
 import { storeToRefs } from 'pinia'
 import AppBootstrap from './app/AppBootstrap.vue'
 import { useAppStore } from './stores/app'
+import { useApplicationClose } from './composables/useApplicationClose'
+
+useApplicationClose()
 
 const appStore = useAppStore()
 const { status } = storeToRefs(appStore)
